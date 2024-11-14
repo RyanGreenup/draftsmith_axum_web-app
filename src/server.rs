@@ -96,9 +96,15 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
     let app = Router::new()
         .route(
             "/:id",
-            get(move |Path(path): Path<i32>| render_index(api_addr.clone(), Path(path))),
+            get({
+                let api_addr = api_addr.clone();
+                move |Path(path): Path<i32>| render_index(api_addr.clone(), Path(path))
+            }),
         )
-        .route("/", get(move || render_index(api_addr.clone(), Path(1))))
+        .route("/", get({
+            let api_addr = api_addr.clone();
+            move || render_index(api_addr.clone(), Path(1))
+        }))
         .nest("/static", build_static_routes())
         .route("/search", get(search));
 
