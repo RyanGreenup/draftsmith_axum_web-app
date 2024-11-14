@@ -1,4 +1,4 @@
-use axum::{response::Html, routing::get, Router};
+use axum::{response::Html, routing::get, Router, extract::Query};
 use draftsmith_rs_api::client::{fetch_note_tree, notes::get_note_rendered_html};
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment};
@@ -71,6 +71,11 @@ async fn render_index(api_addr: String) -> Html<String> {
     Html(rendered)
 }
 
+async fn search(Query(params): Query<std::collections::HashMap<String, String>>) -> Html<String> {
+    let search_term = params.get("q").unwrap_or(&"".to_string());
+    Html(format!("Search term: {}", search_term))
+}
+
 
 
 #[tokio::main]
@@ -84,7 +89,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
 
     // Set up Routes
     let app = Router::new()
-        .route("/", get(move || render_index(api_addr)))
+        .route("/", get(move || render_index(api_addr.clone())))
         .nest("/static", build_static_routes())
         .route("/search", get(search));
 
