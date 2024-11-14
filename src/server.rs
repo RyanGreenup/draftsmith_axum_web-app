@@ -53,7 +53,7 @@ async fn get_index() -> Html<String> {
 
 async fn get_static_files(Path(path): Path<String>) -> impl IntoResponse {
     use axum::http::StatusCode;
-    
+
     let not_found: &[u8] = b"Not Found";
     match path.as_str() {
         "katex/dist/katex.min.js" => (
@@ -61,7 +61,6 @@ async fn get_static_files(Path(path): Path<String>) -> impl IntoResponse {
             KATEX_JS,
         ),
         _ => (
-            StatusCode::NOT_FOUND,
             [(axum::http::header::CONTENT_TYPE, "text/plain")],
             not_found,
         ),
