@@ -1,4 +1,4 @@
-use axum::{routing::get, Router};
+use axum::{response::Html, routing::get, Router};
 use minijinja::{context, path_loader, Environment};
 use once_cell::sync::Lazy;
 use std::fs;
@@ -17,7 +17,7 @@ pub async fn serve(host: &str, port: &str) {
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
     // Set up Routes
-    let app = Router::new().route("/", get(|| async { get_index() }));
+    let app = Router::new().route("/", get(get_index));
 
     // Do it!
     axum::serve(listener, app)
@@ -25,7 +25,7 @@ pub async fn serve(host: &str, port: &str) {
         .unwrap_or_else(|e| panic!("Unable to serve application. Error: {:#}", e));
 }
 
-fn get_index() -> String {
+async fn get_index() -> Html<String> {
     let temp_name = "index.html";
     let tmpl = ENV.get_template(temp_name).unwrap_or_else(|e| {
         panic!(
@@ -40,5 +40,5 @@ fn get_index() -> String {
     let output = tmpl
         .render(ctx)
         .unwrap_or_else(|e| panic!("Unable to render template {:#}. Error: {:#}", &temp_name, e));
-    output
+    Html(output)
 }
