@@ -1,3 +1,4 @@
 /target
 .aider.chat.history.md
 .aider.input.history
+node_modules
