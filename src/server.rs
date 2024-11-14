@@ -1,7 +1,7 @@
 use axum::{response::Html, routing::get, Router};
+use draftsmith_rs_api::client::fetch_note_tree;
 use minijinja::{context, path_loader, Environment};
 use once_cell::sync::Lazy;
-use draftsmith_rs_api::client::fetch_note_tree;
 
 static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     let mut env = Environment::new();
@@ -12,7 +12,7 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 use crate::static_files::build_static_routes;
 
 async fn render_index(base_url: &str) -> Html<String> {
-    // all_notes = fetch_note_tree(base_url);
+    all_notes = fetch_note_tree(base_url);
     let template = ENV.get_template("index.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
     });
