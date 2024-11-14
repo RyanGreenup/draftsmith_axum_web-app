@@ -37,7 +37,13 @@ async fn get_index() -> Html<String> {
             &temp_name, e
         )
     });
-    let ctx = context!(name => "John", foo => "bar");
+    // Define the note variable with default values
+    let note = context! {
+        title => "Default Title"
+    };
+
+    // Include the note variable in the context
+    let ctx = context!(name => "John", foo => "bar", note => note);
     let output = tmpl
         .render(ctx)
         .unwrap_or_else(|e| panic!("Unable to render template {:#}. Error: {:#}", &temp_name, e));
