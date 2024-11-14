@@ -11,7 +11,7 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 
 use crate::static_files::build_static_routes;
 
-async fn render_index() -> Html<String> {
+async fn render_index(base_url: &str) -> Html<String> {
     // all_notes = fetch_note_tree(base_url);
     let template = ENV.get_template("index.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
@@ -24,7 +24,7 @@ async fn render_index() -> Html<String> {
 
 #[tokio::main]
 pub async fn serve(host: &str, port: &str) {
-    // run our app with hyper, listening on specified host and port
+    let base_url = "your_base_url_here"; // Define your base URL here
     let addr = format!("{}:{}", host, port);
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
@@ -32,7 +32,7 @@ pub async fn serve(host: &str, port: &str) {
 
     // Set up Routes
     let app = Router::new()
-        .route("/", get(render_index)) // Add this line
+        .route("/", get(move || render_index(base_url)))
         .nest("/static", build_static_routes());
 
     // Do it!
