@@ -1,9 +1,7 @@
 use axum::{response::Html, routing::get, Router};
-use draftsmith_rs_api::client::{
-    fetch_note_tree, notes::get_note_rendered_html, NoteError, NoteTreeNode,
-};
+use draftsmith_rs_api::client::{fetch_note_tree, notes::get_note_rendered_html};
 use include_dir::{include_dir, Dir};
-use minijinja::{context, path_loader, Environment};
+use minijinja::{context, Environment};
 use once_cell::sync::Lazy;
 use serde_json;
 
@@ -73,6 +71,8 @@ async fn render_index(api_addr: String) -> Html<String> {
     Html(rendered)
 }
 
+
+
 #[tokio::main]
 pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str, port: &str) {
     let api_addr = format!("{api_scheme}://{api_host}:{api_port}");
@@ -85,10 +85,14 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
     // Set up Routes
     let app = Router::new()
         .route("/", get(move || render_index(api_addr)))
-        .nest("/static", build_static_routes());
+        .nest("/static", build_static_routes())
+        .route("/search", get(search));
 
     // Do it!
     axum::serve(listener, app)
         .await
         .unwrap_or_else(|e| panic!("Unable to serve application. Error: {:#}", e));
 }
+
+
+
