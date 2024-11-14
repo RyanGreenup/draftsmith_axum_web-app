@@ -1,4 +1,7 @@
 use clap::Parser;
+pub mod server;
+// TODO this should be a module of server
+mod static_files;
 
 /// Simple program to greet a person or serve an API
 #[derive(Parser, Debug)]
@@ -43,6 +46,7 @@ fn main() {
             println!(
                 "Serving Web App at {host}:{port} using API {api_scheme}://{api_host}:{api_port}"
             );
+            server::serve(host, port);
         }
     }
 }
