@@ -98,10 +98,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             "/:id",
             get(move |Path(path): Path<i32>| render_index(api_addr.clone(), Path(path))),
         )
-        .route(
-            "/",
-            get(move || render_index(api_addr.clone(), Path(1))),
-        )
+        .route("/", get(move || render_index(api_addr.clone(), Path(1))))
         .nest("/static", build_static_routes())
         .route("/search", get(search));
 
