@@ -1,8 +1,6 @@
 use axum::{response::Html, routing::get, Router};
 use minijinja::{context, path_loader, Environment};
 use once_cell::sync::Lazy;
-use std::fs;
-use std::path::PathBuf;
 
 static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     let mut env = Environment::new();
