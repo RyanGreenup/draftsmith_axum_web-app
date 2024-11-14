@@ -30,7 +30,7 @@ pub async fn serve(host: &str, port: &str) {
 
     // Set up Routes
     let app = Router::new()
-        .route("/static/:path", get(get_static_files))
+        .route("/static/katex/dist/:path", get(get_static_files))
         .route("/", get(render_index)); // Add this line
 
     // Do it!

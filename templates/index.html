@@ -3,15 +3,15 @@
 
 <head>
   {% include 'head.html' %}
-  <link rel="stylesheet" href="/static/katex.min.css" />
+  <link rel="stylesheet" href="/static/katex/dist/katex.min.css" />
 </head>
 
 <body>
   <h1>My First Heading</h1>
   <p>My first paragraph.</p>
   <p> $$\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}$$ </p>
-  <script src="/static/katex.min.js"></script>
-  <script src="/static/auto-render.min.js"></script>
+  <script src="/static/katex/dist/katex.min.js"></script>
+  <script src="/static/katex/dist/auto-render.min.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       renderMathInElement(document.body, {
