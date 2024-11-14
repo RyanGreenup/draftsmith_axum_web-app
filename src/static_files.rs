@@ -1,5 +1,5 @@
 use axum::http::StatusCode;
-use axum::{extract::Path, response::IntoResponse};
+use axum::{extract::Path, response::IntoResponse, routing::get, Router};
 use include_dir::{include_dir, Dir};
 
 // Specify the directory you want to include
@@ -15,7 +15,14 @@ static KATEX_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/katex");
 //     String::from_utf8_lossy(admonitions.contents())
 // );
 
-pub async fn get_static_katex_files(Path(path): Path<String>) -> impl IntoResponse {
+pub fn build_static_routes() -> Router {
+    Router::new()
+        .route("/katex/dist/:path", get(get_static_katex_files))
+        .route("/katex/dist/fonts/:path", get(get_static_katex_fonts))
+        .route("/css/:path", get(get_static_css))
+}
+
+async fn get_static_katex_files(Path(path): Path<String>) -> impl IntoResponse {
     let not_found_string: &[u8] = b"Not Found";
 
     match path.as_str() {
@@ -45,7 +52,7 @@ pub async fn get_static_katex_files(Path(path): Path<String>) -> impl IntoRespon
     }
 }
 
-pub async fn get_static_katex_fonts(Path(path): Path<String>) -> impl IntoResponse {
+async fn get_static_katex_fonts(Path(path): Path<String>) -> impl IntoResponse {
     let not_found_string: &[u8] = b"Not Found";
 
     // Check if the requested path corresponds to a font file
@@ -55,6 +62,31 @@ pub async fn get_static_katex_fonts(Path(path): Path<String>) -> impl IntoRespon
             Some("woff2") => "font/woff2",
             Some("ttf") => "font/ttf",
             Some("otf") => "font/otf",
+            _ => "application/octet-stream",
+        };
+
+        return (
+            StatusCode::OK,
+            [(axum::http::header::CONTENT_TYPE, content_type)],
+            file.contents(),
+        );
+    }
+
+    // Return 404 if the file is not found
+    (
+        StatusCode::NOT_FOUND,
+        [(axum::http::header::CONTENT_TYPE, "text/plain")],
+        not_found_string,
+    )
+}
+
+async fn get_static_css(Path(path): Path<String>) -> impl IntoResponse {
+    let not_found_string: &[u8] = b"Not Found";
+
+    // Check if the requested path corresponds to a font file
+    if let Some(file) = CSS_DIR.get_file(path) {
+        let content_type = match file.path().extension().and_then(|ext| ext.to_str()) {
+            Some("css") => "text/css",
             _ => "application/octet-stream",
         };
 

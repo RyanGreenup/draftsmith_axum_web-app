@@ -8,7 +8,7 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     env
 });
 
-use crate::static_files::{get_static_katex_files, get_static_katex_fonts};
+use crate::static_files::build_static_routes;
 
 async fn render_index() -> Html<String> {
     let template = ENV.get_template("index.html").unwrap_or_else(|e| {
@@ -30,12 +30,8 @@ pub async fn serve(host: &str, port: &str) {
 
     // Set up Routes
     let app = Router::new()
-        .route("/static/katex/dist/:path", get(get_static_katex_files))
-        .route(
-            "/static/katex/dist/fonts/:path",
-            get(get_static_katex_fonts),
-        )
-        .route("/", get(render_index)); // Add this line
+        .route("/", get(render_index)) // Add this line
+        .nest("/static", build_static_routes());
 
     // Do it!
     axum::serve(listener, app)
