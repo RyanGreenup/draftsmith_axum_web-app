@@ -16,7 +16,7 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
         .unwrap_or_else(|e| {
             panic!(
                 "Unable to add template {:#} to environment. Error: {:#}",
-                "base.html", e
+                "head.html", e
             )
         });
     env
