@@ -1,4 +1,4 @@
-use axum::{response::Html, routing::get, Router, extract::Query};
+use axum::{extract::Path, extract::Query, response::Html, routing::get, Router};
 use draftsmith_rs_api::client::{fetch_note_tree, notes::get_note_rendered_html};
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment};
@@ -22,30 +22,33 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 
 use crate::static_files::build_static_routes;
 
-async fn render_index(api_addr: String) -> Html<String> {
+// TODO None Path should be 1
+// TODO Better way than using a closure?
+async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
+    let id = path;
     // Get all notes
     let all_notes = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
         panic!("Failed to fetch notes. Error: {:#}", e);
     });
 
     // Render the first note
-    let rendered_note = get_note_rendered_html(&api_addr, 1)
+    let rendered_note = get_note_rendered_html(&api_addr, id)
         .await
         .unwrap_or_else(|e| {
             panic!("Failed to get rendered note. Error: {:#}", e);
         });
 
-    // Get the note with id=1
+    // Get the note with id={id}
     let first_note = all_notes
         .iter()
-        .find(|note| note.id == 1)
+        .find(|note| note.id == id)
         .unwrap_or_else(|| {
-            panic!("Failed to find note with id=1");
+            panic!("Failed to find note with id={id}");
         });
 
     // Get the content
     let content = first_note.content.as_ref().unwrap_or_else(|| {
-        panic!("Failed to get content for note with id=1");
+        panic!("Failed to get content for note with id={id}");
     });
 
     // clean up all_notes as a json
@@ -71,12 +74,14 @@ async fn render_index(api_addr: String) -> Html<String> {
     Html(rendered)
 }
 
+// TODO implement search
 async fn search(Query(params): Query<std::collections::HashMap<String, String>>) -> Html<String> {
-    let search_term = params.get("q").unwrap_or(&"".to_string());
+    let search_term = params
+        .get("q")
+        .unwrap_or(&String::from("Unable to get Search Term"))
+        .clone();
     Html(format!("Search term: {}", search_term))
 }
-
-
 
 #[tokio::main]
 pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str, port: &str) {
@@ -89,7 +94,10 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
 
     // Set up Routes
     let app = Router::new()
-        .route("/", get(move || render_index(api_addr.clone())))
+        .route(
+            "/",
+            get(move |Path(path): Path<i32>| render_index(api_addr.clone(), Path(path))),
+        )
         .nest("/static", build_static_routes())
         .route("/search", get(search));
 
@@ -98,6 +106,3 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .await
         .unwrap_or_else(|e| panic!("Unable to serve application. Error: {:#}", e));
 }
-
-
-
