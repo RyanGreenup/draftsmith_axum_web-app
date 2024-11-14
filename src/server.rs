@@ -5,6 +5,20 @@ use once_cell::sync::Lazy;
 static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     let mut env = Environment::new();
     env.set_loader(path_loader("templates"));
+    env.add_template("index.html", include_str!("../templates/index.html"))
+        .unwrap_or_else(|e| {
+            panic!(
+                "Unable to add template {:#} to environment. Error: {:#}",
+                "index.html", e
+            )
+        });
+    env.add_template("head.html", include_str!("../templates/head.html"))
+        .unwrap_or_else(|e| {
+            panic!(
+                "Unable to add template {:#} to environment. Error: {:#}",
+                "base.html", e
+            )
+        });
     env
 });
 
