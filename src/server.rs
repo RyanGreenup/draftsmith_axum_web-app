@@ -28,7 +28,7 @@ pub async fn serve(host: &str, port: &str) {
     // Set up Routes
     let app = Router::new()
         .route("/", get(get_index))
-        .route("/static", get(get_static_files));
+        .route("/static/:path", get(get_static_files));
 
     // Do it!
     axum::serve(listener, app)
@@ -52,17 +52,16 @@ async fn get_index() -> Html<String> {
 }
 
 async fn get_static_files(Path(path): Path<String>) -> impl IntoResponse {
+    use axum::http::StatusCode;
+    
     let not_found: &[u8] = b"Not Found";
     match path.as_str() {
-        "static/k" => (
-            [(axum::http::header::CONTENT_TYPE, "application/javascript")],
-            KATEX_JS,
-        ),
-        "static/katex/dist/katex.js" => (
+        "katex/dist/katex.min.js" => (
             [(axum::http::header::CONTENT_TYPE, "application/javascript")],
             KATEX_JS,
         ),
         _ => (
+            StatusCode::NOT_FOUND,
             [(axum::http::header::CONTENT_TYPE, "text/plain")],
             not_found,
         ),
