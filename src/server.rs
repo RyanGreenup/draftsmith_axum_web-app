@@ -15,8 +15,9 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 });
 
 // Embed static files into the binary.
-const INDEX_JS: &[u8] = include_bytes!("../static/index.js");
-const STYLE_CSS: &[u8] = include_bytes!("../static/style.css");
+const KATEX_JS: &[u8] = include_bytes!("../static/katex/dist/katex.min.js");
+const KATEX_AUTO_RENDER: &[u8] = include_bytes!("../static/katex/dist/contrib/auto-render.min.js");
+const KATEX_CSS: &[u8] = include_bytes!("../static/katex/dist/katex.min.css");
 
 #[tokio::main]
 pub async fn serve(host: &str, port: &str) {
@@ -27,7 +28,7 @@ pub async fn serve(host: &str, port: &str) {
     // Set up Routes
     let app = Router::new()
         .route("/", get(get_index))
-        .nest_service("/static", get_static_files);
+        .route("/static", get(get_static_files));
 
     // Do it!
     axum::serve(listener, app)
@@ -44,19 +45,26 @@ async fn get_index() -> Html<String> {
         )
     });
     let ctx = context!(name => "John", foo => "bar");
-    let output = tmpl.render(ctx).unwrap_or_else(|e| {
-        panic!("Unable to render template {:#}. Error: {:#}", &temp_name, e)
-    });
+    let output = tmpl
+        .render(ctx)
+        .unwrap_or_else(|e| panic!("Unable to render template {:#}. Error: {:#}", &temp_name, e));
     Html(output)
 }
 
 async fn get_static_files(Path(path): Path<String>) -> impl IntoResponse {
+    let not_found: &[u8] = b"Not Found";
     match path.as_str() {
-        "index.js" => ([(axum::http::header::CONTENT_TYPE, "application/javascript")], INDEX_JS),
-        "style.css" => ([(axum::http::header::CONTENT_TYPE, "text/css")], STYLE_CSS),
+        "static/k" => (
+            [(axum::http::header::CONTENT_TYPE, "application/javascript")],
+            KATEX_JS,
+        ),
+        "static/katex/dist/katex.js" => (
+            [(axum::http::header::CONTENT_TYPE, "application/javascript")],
+            KATEX_JS,
+        ),
         _ => (
             [(axum::http::header::CONTENT_TYPE, "text/plain")],
-            b"Not Found",
+            not_found,
         ),
     }
 }
