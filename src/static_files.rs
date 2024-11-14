@@ -32,7 +32,51 @@ pub async fn get_static_files(Path(path): Path<String>) -> impl IntoResponse {
         "auto-render.min.js" => (
             StatusCode::OK,
             [(axum::http::header::CONTENT_TYPE, "application/javascript")],
-            KATEX_DIR.get_file("dist/contrib/auto-render.min.js").unwrap().contents(),
+            KATEX_DIR
+                .get_file("dist/contrib/auto-render.min.js")
+                .unwrap()
+                .contents(),
+        ),
+        "katex.min.css" => (
+            StatusCode::OK,
+            [(axum::http::header::CONTENT_TYPE, "text/css")],
+            KATEX_DIR.get_file("dist/katex.min.css").unwrap().contents(),
+        ),
+        _ => (
+            StatusCode::NOT_FOUND,
+            [(axum::http::header::CONTENT_TYPE, "text/plain")],
+            not_found_string,
+        ),
+    }
+}
+
+pub async fn get_static_katex_fonts(Path(path): Path<String>) -> impl IntoResponse {
+    let not_found_string: &[u8] = b"Not Found";
+
+    // loop through the fonts directory
+    KATEX_DIR
+        .get_dir("dist/fonts")
+        .unwrap_or_else(|| {
+            panic!("Failed to load fonts directory");
+        })
+        .files()
+        .for_each(|file| {
+            println!("File: {:#?}", file.path());
+        });
+
+    match path.as_str() {
+        "katex.min.js" => (
+            StatusCode::OK,
+            [(axum::http::header::CONTENT_TYPE, "application/javascript")],
+            KATEX_DIR.get_file("dist/katex.min.js").unwrap().contents(),
+        ),
+        "auto-render.min.js" => (
+            StatusCode::OK,
+            [(axum::http::header::CONTENT_TYPE, "application/javascript")],
+            KATEX_DIR
+                .get_file("dist/contrib/auto-render.min.js")
+                .unwrap()
+                .contents(),
         ),
         "katex.min.css" => (
             StatusCode::OK,
