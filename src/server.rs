@@ -1,12 +1,6 @@
-use axum::{
-    extract::Path,
-    response::{Html, IntoResponse},
-    routing::{get, get_service},
-    Router,
-};
+use axum::{response::Html, routing::get, Router};
 use minijinja::{context, path_loader, Environment};
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
 
 static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     let mut env = Environment::new();
@@ -14,16 +8,15 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     env
 });
 
-// Embed static files into the binary.
-const KATEX_JS: &[u8] = include_bytes!("../static/katex/dist/katex.min.js");
-const KATEX_AUTO_RENDER: &[u8] = include_bytes!("../static/katex/dist/contrib/auto-render.min.js");
-const KATEX_CSS: &[u8] = include_bytes!("../static/katex/dist/katex.min.css");
+use crate::static_files::get_static_files;
 
 #[tokio::main]
 pub async fn serve(host: &str, port: &str) {
     // run our app with hyper, listening on specified host and port
     let addr = format!("{}:{}", host, port);
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(&addr)
+        .await
+        .expect("Failed to bind address");
 
     // Set up Routes
     let app = Router::new()
@@ -49,21 +42,4 @@ async fn get_index() -> Html<String> {
         .render(ctx)
         .unwrap_or_else(|e| panic!("Unable to render template {:#}. Error: {:#}", &temp_name, e));
     Html(output)
-}
-
-async fn get_static_files(Path(path): Path<String>) -> impl IntoResponse {
-    use axum::http::StatusCode;
-
-    match path.as_str() {
-        "katex/dist/katex.min.js" => (
-            StatusCode::OK,
-            [(axum::http::header::CONTENT_TYPE, "application/javascript")],
-            KATEX_JS,
-        ),
-        _ => (
-            StatusCode::NOT_FOUND,
-            [(axum::http::header::CONTENT_TYPE, "text/plain")],
-            b"Not Found",
-        ),
-    }
 }
