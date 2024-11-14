@@ -1,5 +1,4 @@
 use axum::{response::Html, routing::get, Router};
-use minijinja::context;
 use minijinja::{context, path_loader, Environment};
 use once_cell::sync::Lazy;
 
@@ -12,8 +11,12 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 use crate::static_files::get_static_files;
 
 async fn render_index() -> Html<String> {
-    let template = ENV.get_template("index.html").expect("Template not found");
-    let rendered = template.render(context!()).expect("Failed to render template");
+    let template = ENV.get_template("index.html").unwrap_or_else(|e| {
+        panic!("Failed to load template. Error: {:#}", e);
+    });
+    let rendered = template.render(context!()).unwrap_or_else(|e| {
+        panic!("Failed to render template. Error: {:#}", e);
+    });
     Html(rendered)
 }
 
@@ -35,4 +38,3 @@ pub async fn serve(host: &str, port: &str) {
         .await
         .unwrap_or_else(|e| panic!("Unable to serve application. Error: {:#}", e));
 }
-
