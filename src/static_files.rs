@@ -1,12 +1,14 @@
 use axum::http::StatusCode;
-use axum::{extract::Path, response::IntoResponse, routing::get, Router};
+use axum::{extract::Path, http::header, response::IntoResponse, routing::get, Router};
 use include_dir::{include_dir, Dir};
+use mime_guess;
 
 // Specify the directory you want to include
 static CSS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/css");
 static JS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/js");
-static MEDIA_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/katex");
+static MEDIA_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/media");
 static KATEX_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/katex");
+const NOT_FOUND_RESPONSE: &[u8] = b"Not Found";
 
 // How to load a static file
 // let admonitions = CSS_DIR.get_file("admonitions.css").unwrap();
@@ -20,6 +22,8 @@ pub fn build_static_routes() -> Router {
         .route("/katex/dist/:path", get(get_static_katex_files))
         .route("/katex/dist/fonts/:path", get(get_static_katex_fonts))
         .route("/css/:path", get(get_static_css))
+        .route("/js/:path", get(get_static_js))
+        .route("/media/:path", get(get_static_media))
 }
 
 async fn get_static_katex_files(Path(path): Path<String>) -> impl IntoResponse {
@@ -57,13 +61,10 @@ async fn get_static_katex_fonts(Path(path): Path<String>) -> impl IntoResponse {
 
     // Check if the requested path corresponds to a font file
     if let Some(file) = KATEX_DIR.get_file(format!("dist/fonts/{}", path)) {
-        let content_type = match file.path().extension().and_then(|ext| ext.to_str()) {
-            Some("woff") => "font/woff",
-            Some("woff2") => "font/woff2",
-            Some("ttf") => "font/ttf",
-            Some("otf") => "font/otf",
-            _ => "application/octet-stream",
-        };
+        let content_type = mime_guess::from_path(file.path())
+            .first_or_octet_stream()
+            .as_ref()
+            .to_string();
 
         return (
             StatusCode::OK,
@@ -75,32 +76,45 @@ async fn get_static_katex_fonts(Path(path): Path<String>) -> impl IntoResponse {
     // Return 404 if the file is not found
     (
         StatusCode::NOT_FOUND,
-        [(axum::http::header::CONTENT_TYPE, "text/plain")],
+        [(axum::http::header::CONTENT_TYPE, String::from("text/plain"))],
         not_found_string,
     )
 }
 
-async fn get_static_css(Path(path): Path<String>) -> impl IntoResponse {
-    let not_found_string: &[u8] = b"Not Found";
-
-    // Check if the requested path corresponds to a font file
-    if let Some(file) = CSS_DIR.get_file(path) {
-        let content_type = match file.path().extension().and_then(|ext| ext.to_str()) {
-            Some("css") => "text/css",
-            _ => "application/octet-stream",
-        };
-
+async fn get_static_file(dir: &Dir<'_>, path: String) -> impl IntoResponse {
+    // Try to get the file from the directory
+    if let Some(file) = dir.get_file(&path) {
+        let content_type = determine_content_type(file.path());
         return (
             StatusCode::OK,
-            [(axum::http::header::CONTENT_TYPE, content_type)],
-            file.contents(),
+            [(header::CONTENT_TYPE, content_type)],
+            file.contents().to_vec(),
         );
     }
 
     // Return 404 if the file is not found
     (
         StatusCode::NOT_FOUND,
-        [(axum::http::header::CONTENT_TYPE, "text/plain")],
-        not_found_string,
+        [(header::CONTENT_TYPE, String::from("text/plain"))],
+        NOT_FOUND_RESPONSE.to_vec(),
     )
+}
+
+fn determine_content_type(path: &std::path::Path) -> String {
+    mime_guess::from_path(path)
+        .first_or_octet_stream()
+        .as_ref()
+        .to_string()
+}
+
+async fn get_static_js(Path(path): Path<String>) -> impl IntoResponse {
+    get_static_file(&JS_DIR, path).await
+}
+
+async fn get_static_media(Path(path): Path<String>) -> impl IntoResponse {
+    get_static_file(&MEDIA_DIR, path).await
+}
+
+async fn get_static_css(Path(path): Path<String>) -> impl IntoResponse {
+    get_static_file(&CSS_DIR, path).await
 }

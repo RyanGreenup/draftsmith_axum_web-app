@@ -46,7 +46,7 @@ fn main() {
             println!(
                 "Serving Web App at {host}:{port} using API {api_scheme}://{api_host}:{api_port}"
             );
-            server::serve(host, port);
+            server::serve(api_scheme, api_host, api_port, host, port);
         }
     }
 }
