@@ -1,7 +1,7 @@
 use axum::{extract::Path, extract::Query, response::Html, routing::get, Router};
 use draftsmith_rs_api::client::{fetch_note_tree, notes::get_note_rendered_html};
 use include_dir::{include_dir, Dir};
-use minijinja::{context, Environment};
+use minijinja::{context, Environment, Error, ErrorKind};
 use once_cell::sync::Lazy;
 use serde_json;
 
@@ -17,6 +17,26 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
         env.add_template_owned(file.path().to_str().unwrap(), contents)
             .unwrap();
     }
+
+    // Add custom functions
+    fn concat(a: String, b: String) -> Result<String, Error> {
+        Ok(format!("{}{}", a, b))
+    }
+
+    fn menu_item(url: String, name: String) -> Result<String, Error> {
+        Ok(format!(
+            r#"
+              <li>
+                <!-- TODO -->
+                <a href="{}" class="btn btn-ghost btn-sm justify-start">{}</a>
+              </li>
+                "#,
+            url, name
+        ))
+    }
+
+    env.add_function("c", concat);
+    env.add_function("menu_item", menu_item);
     env
 });
 
@@ -39,22 +59,12 @@ async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
         });
 
     // Get the note with id={id}
-    let first_note = all_notes
+    let note = all_notes
         .iter()
         .find(|note| note.id == id)
         .unwrap_or_else(|| {
             panic!("Failed to find note with id={id}");
         });
-
-    // Get the content
-    let content = first_note.content.as_ref().unwrap_or_else(|| {
-        panic!("Failed to get content for note with id={id}");
-    });
-
-    // clean up all_notes as a json
-    let all_notes = serde_json::to_string_pretty(&all_notes).unwrap_or_else(|e| {
-        panic!("Failed to serialize notes. Error: {:#}", e);
-    });
 
     // Load the template
     let template = ENV.get_template("base.html").unwrap_or_else(|e| {
@@ -62,11 +72,11 @@ async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
     });
 
     // Render the template
+    // // TODO clean these up
     let rendered = template
         .render(context!(
-        all_notes => all_notes,
-        content => content,
         rendered_note => rendered_note,
+        note => note,
         ))
         .unwrap_or_else(|e| {
             panic!("Failed to render template. Error: {:#}", e);
@@ -81,6 +91,11 @@ async fn search(Query(params): Query<std::collections::HashMap<String, String>>)
         .unwrap_or(&String::from("Unable to get Search Term"))
         .clone();
     Html(format!("Search term: {}", search_term))
+}
+
+// TODO implement recent
+async fn recent() -> Html<String> {
+    Html(format!("TODO Recent Pages"))
 }
 
 #[tokio::main]
@@ -101,12 +116,16 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
                 move |Path(path): Path<i32>| render_index(api_addr.clone(), Path(path))
             }),
         )
-        .route("/", get({
-            let api_addr = api_addr.clone();
-            move || render_index(api_addr.clone(), Path(1))
-        }))
+        .route(
+            "/",
+            get({
+                let api_addr = api_addr.clone();
+                move || render_index(api_addr.clone(), Path(1))
+            }),
+        )
         .nest("/static", build_static_routes())
-        .route("/search", get(search));
+        .route("/search", get(search))
+        .route("/recent", get(recent));
 
     // Do it!
     axum::serve(listener, app)

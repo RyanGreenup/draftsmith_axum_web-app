@@ -1,7 +1,6 @@
 use axum::http::StatusCode;
 use axum::{extract::Path, http::header, response::IntoResponse, routing::get, Router};
 use include_dir::{include_dir, Dir};
-use mime_guess;
 
 // Specify the directory you want to include
 static CSS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/css");
