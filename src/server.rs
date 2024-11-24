@@ -11,10 +11,15 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     let mut env = Environment::new();
     // env.set_loader(path_loader("templates"));
 
-    for file in TEMPLATE_DIR.files() {
-        let contents = String::from_utf8_lossy(file.contents()).to_string();
-        env.add_template_owned(file.path().to_str().unwrap(), contents)
-            .unwrap();
+    for entry in TEMPLATE_DIR
+        .find("**/*.html")
+        .expect("Unable to walk Template Directory")
+    {
+        if let Some(file) = entry.as_file() {
+            let contents = String::from_utf8_lossy(file.contents()).to_string();
+            env.add_template_owned(file.path().to_str().unwrap(), contents)
+                .unwrap();
+        }
     }
 
     // Add custom functions
