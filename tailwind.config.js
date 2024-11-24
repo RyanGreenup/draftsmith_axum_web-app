@@ -1,17 +1,17 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./src/*.{html,js}",
-    "./src/templates/**/*.{html,js}",
-    "./src/static/css/{html,js}",
-    "./src/static/styles/{html,js}",
-    "./src/static/js/{html,js}",
+    "./*.{html,js}",
+    "./templates/**/*.{html,js}",
+    "./static/css/{html,js}",
+    "./static/styles/{html,js}",
+    "./static/js/{html,js}",
   ],
   theme: {
     extend: {
       daisyui: {
         "--rounded-box": "1rem",
-        "--rounded-btn": "0.5rem", 
+        "--rounded-btn": "0.5rem",
         "--rounded-badge": "1.9rem",
         "--animation-btn": "0.25s",
         "--animation-input": "0.2s",
