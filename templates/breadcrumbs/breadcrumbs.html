@@ -1,0 +1,40 @@
+{% extends "breadcrumbs/base.html" %}
+
+<!-- TODO these need to match the hierarchy of the page -->
+
+{% block content %}
+<ul class="flex flex-wrap items-center gap-2">
+
+<li>
+<a href="/note/22" class="text-primary hover:text-primary-focus hover:underline">
+  Journals
+</a>
+</li>
+<span>/</span>
+
+<li>
+<a href="/note/24" class="text-primary hover:text-primary-focus hover:underline">
+  2024
+</a>
+</li>
+<span>/</span>
+
+<li>
+<a href="/note/25" class="text-primary hover:text-primary-focus hover:underline">
+  November
+</a>
+</li>
+<span>/</span>
+
+<li>
+<a href="/note/26" class="text-primary hover:text-primary-focus hover:underline">
+  W 47
+</a>
+</li>
+<span>/</span>
+
+<li class="text-gray-600 font-semibold">2024-11-23 Sat
+</li>
+
+</ul>
+{% endblock %}
