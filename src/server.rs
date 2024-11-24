@@ -1,6 +1,6 @@
 use axum::{extract::Path, extract::Query, response::Html, routing::get, Router};
-use draftsmith_rs_api::client::{fetch_note_tree, notes::get_note_rendered_html};
-use include_dir::{include_dir, Dir};
+use draftsmith_rest_api::client::{fetch_note, fetch_note_tree, notes::get_note_rendered_html};
+use include_dir::{include_dir, Dir, File};
 use minijinja::{context, Environment, Error, ErrorKind};
 use once_cell::sync::Lazy;
 use serde_json;
@@ -11,7 +11,6 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     let mut env = Environment::new();
     // env.set_loader(path_loader("templates"));
 
-    // Loop over TEMPLATE_DIR
     for file in TEMPLATE_DIR.files() {
         let contents = String::from_utf8_lossy(file.contents()).to_string();
         env.add_template_owned(file.path().to_str().unwrap(), contents)
@@ -46,10 +45,15 @@ use crate::static_files::build_static_routes;
 // TODO Better way than using a closure?
 async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
     let id = path;
-    // Get all notes
-    let all_notes = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
-        panic!("Failed to fetch notes. Error: {:#}", e);
+    // Get the note
+    let note = fetch_note(&api_addr, id, true).await.unwrap_or_else(|e| {
+        // TODO don't panic!
+        panic!("Failed to fetch note. Error: {:#}", e);
     });
+    // // Get all notes
+    // let all_notes = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
+    //     panic!("Failed to fetch notes. Error: {:#}", e);
+    // });
 
     // Render the first note
     let rendered_note = get_note_rendered_html(&api_addr, id)
@@ -58,15 +62,8 @@ async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
             panic!("Failed to get rendered note. Error: {:#}", e);
         });
 
-    // Get the note with id={id}
-    let note = all_notes
-        .iter()
-        .find(|note| note.id == id)
-        .unwrap_or_else(|| {
-            panic!("Failed to find note with id={id}");
-        });
-
     // Load the template
+    // TODO don't panic
     let template = ENV.get_template("base.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
     });
