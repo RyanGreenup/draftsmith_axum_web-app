@@ -69,7 +69,7 @@ async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
 
     // Load the template
     // TODO don't panic
-    let template = ENV.get_template("body.html").unwrap_or_else(|e| {
+    let template = ENV.get_template("body/base.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
     });
 
@@ -112,7 +112,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
     // Set up Routes
     let app = Router::new()
         .route(
-            "/:id",
+            "/note/:id",
             get({
                 let api_addr = api_addr.clone();
                 move |Path(path): Path<i32>| render_index(api_addr.clone(), Path(path))
