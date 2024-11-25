@@ -65,7 +65,7 @@ async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
 
     // Load the template
     // TODO don't panic
-    let template = ENV.get_template("body/base.html").unwrap_or_else(|e| {
+    let template = ENV.get_template("body/note/base.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
     });
 

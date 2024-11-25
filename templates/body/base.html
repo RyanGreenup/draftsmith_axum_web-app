@@ -1,9 +1,32 @@
 {% extends "base.html" %}
-{% block content %}
-    {# TODO Handle EDIT endpoint #}
-    <div class="card bg-base-200 shadow-xl p-1">
-      <div class="card-body p-0">
-        <div class="markdown">{% include 'body/note/read.html' %}</div>
+{% block body %}
+    {% include 'navbar/base.html'%}
+    <main>
+      <div class="drawer lg:drawer-open">
+        <input id="pages-drawer" type="checkbox" class="drawer-toggle" />
+        <div class="drawer-content flex flex-col items-center justify-center">
+          {% include 'breadcrumbs/breadcrumbs.html' %}
+          <div class="container mx-auto px-2 py-8">
+            <!-- Page content here -->
+            {% block content %}
+            {% endblock %}
+          </div>
+        </div>
+        <div class="drawer-side">
+          <label
+            for="pages-drawer"
+            aria-label="close sidebar"
+            class="drawer-overlay"
+          ></label>
+          <ul class="menu bg-base-200 text-base-content min-h-full w-80 p-4">
+            <!-- Sidebar content here -->
+            <li><a>Sidebar Item 1</a></li>
+            <li><a>Sidebar Item 2</a></li>
+          </ul>
+        </div>
       </div>
-    </div>
-{% endblock %}
+
+      {% include 'tag_drawer.html' %}
+      {% include 'katex/katex_js.html' %}
+    </main>
+{%endblock%}
