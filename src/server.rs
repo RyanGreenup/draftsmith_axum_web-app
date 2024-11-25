@@ -55,10 +55,6 @@ async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
         // TODO don't panic!
         panic!("Failed to fetch note. Error: {:#}", e);
     });
-    // // Get all notes
-    // let all_notes = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
-    //     panic!("Failed to fetch notes. Error: {:#}", e);
-    // });
 
     // Render the first note
     let rendered_note = get_note_rendered_html(&api_addr, id)
@@ -73,16 +69,35 @@ async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
         panic!("Failed to load template. Error: {:#}", e);
     });
 
-    // Render the template
-    // // TODO clean these up
-    let rendered = template
-        .render(context!(
-        rendered_note => rendered_note,
-        note => note,
-        ))
-        .unwrap_or_else(|e| {
-            panic!("Failed to render template. Error: {:#}", e);
-        });
+    // // Render the template
+    // // // TODO clean these up
+    // let rendered = template
+    //     .render(context!(
+    //     rendered_note => rendered_note,
+    //     note => note,
+    //     ))
+    //     .unwrap_or_else(|e| {
+    //         panic!("Failed to render template. Error: {:#}", e);
+    //     });
+
+    let rendered = match template.render(context!(
+    rendered_note => rendered_note,
+    note => note,
+    )) {
+        Ok(result) => result,
+        Err(err) => {
+            eprintln!("Could not render template: {:#}", err);
+            // render causes as well
+            let mut err = &err as &dyn std::error::Error;
+            while let Some(next_err) = err.source() {
+                eprintln!();
+                eprintln!("caused by: {:#}", next_err);
+                err = next_err;
+            }
+            String::from("<h1>Error rendering Template</h1></br> See STDERR for more information")
+        }
+    };
+
     Html(rendered)
 }
 
