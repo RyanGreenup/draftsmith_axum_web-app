@@ -5,6 +5,8 @@ use axum::{
     routing::post,
     Form, Router,
 };
+use tower_sessions::{Session, SessionManagerLayer};
+use async_session::MemoryStore;
 use draftsmith_rest_api::client::{
     fetch_note, fetch_note_tree, notes::get_note_rendered_html, update_note, UpdateNoteRequest,
 };
@@ -13,6 +15,12 @@ use minijinja::{context, Environment, Error, ErrorKind};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct FlashMessage {
+    kind: String,  // "success", "error", "info", "warning"
+    message: String,
+}
 
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 
@@ -57,8 +65,12 @@ use crate::static_files::build_static_routes;
 
 // TODO None Path should be 1
 // TODO Better way than using a closure?
-async fn route_note(api_addr: String, Path(path): Path<i32>) -> Html<String> {
+async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -> Html<String> {
     let id = path;
+    
+    // Get and remove flash message
+    let flash = session.remove::<FlashMessage>("flash").await.unwrap_or(None);
+
     // Get the note
     let note = fetch_note(&api_addr, id, true).await.unwrap_or_else(|e| {
         // TODO don't panic!
@@ -78,8 +90,9 @@ async fn route_note(api_addr: String, Path(path): Path<i32>) -> Html<String> {
     });
 
     let rendered = match template.render(context!(
-    rendered_note => rendered_note,
-    note => note,
+        rendered_note => rendered_note,
+        note => note,
+        flash => flash,
     )) {
         Ok(result) => result,
         Err(err) => handle_template_error(err),
@@ -112,17 +125,27 @@ async fn route_edit(api_addr: String, Path(path): Path<i32>) -> Html<String> {
 }
 
 async fn route_update_note(
+    session: Session,
     api_addr: String,
     Path(path): Path<i32>,
     Form(note): Form<UpdateNoteRequest>,
 ) -> Redirect {
     let id = path;
 
-    // Add error handling and await the update
-    update_note(&api_addr, id, note).await.unwrap_or_else(|e| {
-        // TODO: Better error handling
-        panic!("Failed to update note. Error: {:#}", e);
-    });
+    match update_note(&api_addr, id, note).await {
+        Ok(_) => {
+            session.insert("flash", FlashMessage {
+                kind: "success".to_string(),
+                message: "Note updated successfully".to_string(),
+            }).await.unwrap();
+        }
+        Err(e) => {
+            session.insert("flash", FlashMessage {
+                kind: "error".to_string(),
+                message: format!("Failed to update note: {}", e),
+            }).await.unwrap();
+        }
+    }
 
     Redirect::to(&format!("/note/{id}"))
 }
@@ -162,38 +185,44 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .await
         .expect("Failed to bind address");
 
+    // Create session store
+    let session_store = MemoryStore::new();
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_secure(false);
+
     // Set up Routes
     let app = Router::new()
         .route(
             "/note/:id",
             get({
                 let api_addr = api_addr.clone();
-                move |Path(path): Path<i32>| route_note(api_addr.clone(), Path(path))
+                move |session: Session, Path(path): Path<i32>| route_note(session, api_addr.clone(), Path(path))
             }),
         )
         .route(
             "/",
             get({
                 let api_addr = api_addr.clone();
-                move || route_note(api_addr.clone(), Path(1))
+                move |session: Session| route_note(session, api_addr.clone(), Path(1))
             }),
         )
         .route(
             "/edit/:id",
             get({
                 let api_addr = api_addr.clone();
-                move |Path(path): Path<i32>| route_edit(api_addr.clone(), Path(path))
+                move |session: Session, Path(path): Path<i32>| route_edit(session, api_addr.clone(), Path(path))
             })
             .post({
                 let api_addr = api_addr.clone();
-                move |Path(path): Path<i32>, Form(note): Form<UpdateNoteRequest>| {
-                    route_update_note(api_addr.clone(), Path(path), Form(note))
+                move |session: Session, Path(path): Path<i32>, Form(note): Form<UpdateNoteRequest>| {
+                    route_update_note(session, api_addr.clone(), Path(path), Form(note))
                 }
             }),
         )
         .nest("/static", build_static_routes())
         .route("/search", get(search))
-        .route("/recent", get(recent));
+        .route("/recent", get(recent))
+        .layer(session_layer);
 
     // Do it!
     axum::serve(listener, app)
