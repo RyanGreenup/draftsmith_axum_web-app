@@ -118,7 +118,11 @@ async fn route_update_note(
 ) -> Redirect {
     let id = path;
 
-    update_note(&api_addr, id, note);
+    // Add error handling and await the update
+    update_note(&api_addr, id, note).await.unwrap_or_else(|e| {
+        // TODO: Better error handling
+        panic!("Failed to update note. Error: {:#}", e);
+    });
 
     Redirect::to(&format!("/note/{id}"))
 }
