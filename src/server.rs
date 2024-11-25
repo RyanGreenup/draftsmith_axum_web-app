@@ -101,24 +101,54 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
     Html(rendered)
 }
 
-async fn route_edit(api_addr: String, Path(path): Path<i32>) -> Html<String> {
+async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -> Html<String> {
     let id = path;
+    
     // Get the note
-    let note = fetch_note(&api_addr, id, false).await.unwrap_or_else(|e| {
-        // TODO don't panic!
-        panic!("Failed to fetch note. Error: {:#}", e);
-    });
+    let note = match fetch_note(&api_addr, id, false).await {
+        Ok(note) => note,
+        Err(e) => {
+            session.insert("flash", FlashMessage {
+                kind: "error".to_string(),
+                message: format!("Failed to fetch note: {}", e),
+            }).await.unwrap();
+            
+            // Redirect to home page or another appropriate page when note fetch fails
+            return Html(format!(
+                r#"<script>window.location.href = "/note/{}";</script>"#,
+                id
+            ));
+        }
+    };
 
     // Load the template
-    let template = ENV.get_template("body/note/edit.html").unwrap_or_else(|e| {
-        panic!("Failed to load template. Error: {:#}", e);
-    });
+    let template = match ENV.get_template("body/note/edit.html") {
+        Ok(template) => template,
+        Err(e) => {
+            session.insert("flash", FlashMessage {
+                kind: "error".to_string(),
+                message: format!("Failed to load template: {}", e),
+            }).await.unwrap();
+            
+            return Html(format!(
+                r#"<script>window.location.href = "/note/{}";</script>"#,
+                id
+            ));
+        }
+    };
 
     let rendered = match template.render(context!(
-    note => note,
+        note => note,
     )) {
         Ok(result) => result,
-        Err(err) => handle_template_error(err),
+        Err(err) => {
+            session.insert("flash", FlashMessage {
+                kind: "error".to_string(),
+                message: format!("Failed to render template: {}", err),
+            }).await.unwrap();
+            
+            handle_template_error(err)
+        }
     };
 
     Html(rendered)
