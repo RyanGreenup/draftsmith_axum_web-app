@@ -5,7 +5,7 @@ use axum::{
     Form, Router,
 };
 use draftsmith_rest_api::client::{
-    fetch_note, notes::get_note_rendered_html, update_note, UpdateNoteRequest,
+    fetch_note, notes::get_note_rendered_html, update_note, UpdateNoteRequest
 };
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
