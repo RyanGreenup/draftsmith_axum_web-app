@@ -1,0 +1,24 @@
+<div class="drawer drawer-end">
+  <input id="tag-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-side">
+    <label
+      for="tag-drawer"
+      aria-label="close sidebar"
+      class="drawer-overlay"
+    ></label>
+    <div class="menu bg-base-200 text-base-content min-h-full w-80 p-4">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold">Tags</h2>
+        <a href="/manage_all_tags" class="btn btn-sm">Manage Tags</a>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="overflow-y-auto">
+        <ul class="menu bg-base-200 rounded-box w-full md:w-56">
+          {% include "temp_tag_content.html" %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
