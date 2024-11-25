@@ -65,6 +65,9 @@ async fn route_note(api_addr: String, Path(path): Path<i32>) -> Html<String> {
         panic!("Failed to fetch note. Error: {:#}", e);
     });
 
+
+
+
     // Render the first note
     let rendered_note = get_note_rendered_html(&api_addr, id)
         .await

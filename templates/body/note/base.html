@@ -1,16 +1,9 @@
 {% extends "body/base.html" %}
 {% block content %}
   <div class="container mx-auto px-4 py-8">
-    {% include 'action_buttons/action_buttons.html' %}
-    <div class="card bg-base-200 shadow-xl">
-      <div class="card-body p-2">
-        <div class="container mx-auto px-4 py-8">
-          {% block note_content %} {% endblock %}
-        </div>
-      </div>
-    </div>
+    {% block note_content %} {% endblock %}
     <div class="mt-4 text-sm text-base-content/70">
-      Last modified: TODO
+      Last modified: {{note.modified_at}}
     </div>
   </div>
   {% include 'body/note/footer.html' %}

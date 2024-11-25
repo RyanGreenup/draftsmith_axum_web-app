@@ -1,8 +1,8 @@
 <!-- TODO Make this take the correct id -->
 {% extends "action_buttons/base.html" %} {% block action_buttons %}
-<a href="/edit/69" class="btn btn-primary" data-edit-link=""> Edit </a>
+<a href="/edit/{{note.id}}" class="btn btn-primary" data-edit-link=""> Edit </a>
 <form
-  action="/note/69/delete"
+  action="/note/{{note.id}}/delete"
   method="POST"
   class="inline"
   onsubmit="return confirm('Are you sure you want to delete this note?');"
