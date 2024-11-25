@@ -65,9 +65,6 @@ async fn route_note(api_addr: String, Path(path): Path<i32>) -> Html<String> {
         panic!("Failed to fetch note. Error: {:#}", e);
     });
 
-
-
-
     // Render the first note
     let rendered_note = get_note_rendered_html(&api_addr, id)
         .await
@@ -91,12 +88,6 @@ async fn route_note(api_addr: String, Path(path): Path<i32>) -> Html<String> {
     Html(rendered)
 }
 
-/*
-Before implementing this:
-
-1. How to handle url_for
-2. How to handle POST submission endpoints?
-*/
 async fn route_edit(api_addr: String, Path(path): Path<i32>) -> Html<String> {
     let id = path;
     // Get the note
@@ -128,7 +119,6 @@ async fn route_update_note(
     let id = path;
 
     update_note(&api_addr, id, note);
-    // TODO implement a flash
 
     Redirect::to(&format!("/note/{id}"))
 }
@@ -189,11 +179,8 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             get({
                 let api_addr = api_addr.clone();
                 move |Path(path): Path<i32>| route_edit(api_addr.clone(), Path(path))
-            }),
-        )
-        .route(
-            "/edit/:id",
-            post({
+            })
+            .post({
                 let api_addr = api_addr.clone();
                 move |Path(path): Path<i32>, Form(note): Form<UpdateNoteRequest>| {
                     route_update_note(api_addr.clone(), Path(path), Form(note))
