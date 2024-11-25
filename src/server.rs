@@ -1,8 +1,17 @@
-use axum::{extract::Path, extract::Query, response::Html, routing::get, Router};
-use draftsmith_rest_api::client::{fetch_note, fetch_note_tree, notes::get_note_rendered_html};
+use axum::{
+    extract::{Path, Query},
+    response::{Html, Redirect},
+    routing::get,
+    routing::post,
+    Form, Router,
+};
+use draftsmith_rest_api::client::{
+    fetch_note, fetch_note_tree, notes::get_note_rendered_html, update_note, UpdateNoteRequest,
+};
 use include_dir::{include_dir, Dir, File};
 use minijinja::{context, Environment, Error, ErrorKind};
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use serde_json;
 
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
@@ -80,21 +89,25 @@ async fn route_note(api_addr: String, Path(path): Path<i32>) -> Html<String> {
 }
 
 /*
+Before implementing this:
+
+1. How to handle url_for
+2. How to handle POST submission endpoints?
+*/
 async fn route_edit(api_addr: String, Path(path): Path<i32>) -> Html<String> {
     let id = path;
     // Get the note
-    let note = fetch_note(&api_addr, id, true).await.unwrap_or_else(|e| {
+    let note = fetch_note(&api_addr, id, false).await.unwrap_or_else(|e| {
         // TODO don't panic!
         panic!("Failed to fetch note. Error: {:#}", e);
     });
 
     // Load the template
-    let template = ENV.get_template("body/note/base.html").unwrap_or_else(|e| {
+    let template = ENV.get_template("body/note/edit.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
     });
 
     let rendered = match template.render(context!(
-    rendered_note => rendered_note,
     note => note,
     )) {
         Ok(result) => result,
@@ -103,7 +116,19 @@ async fn route_edit(api_addr: String, Path(path): Path<i32>) -> Html<String> {
 
     Html(rendered)
 }
-*/
+
+async fn route_update_note(
+    api_addr: String,
+    Path(path): Path<i32>,
+    Form(note): Form<UpdateNoteRequest>,
+) -> Redirect {
+    let id = path;
+
+    update_note(&api_addr, id, note);
+    // TODO implement a flash
+
+    Redirect::to(&format!("/note/{id}"))
+}
 
 fn handle_template_error(err: Error) -> String {
     eprintln!("Could not render template: {:#}", err);
@@ -156,6 +181,22 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
                 move || route_note(api_addr.clone(), Path(1))
             }),
         )
+        .route(
+            "/edit/:id",
+            get({
+                let api_addr = api_addr.clone();
+                move |Path(path): Path<i32>| route_edit(api_addr.clone(), Path(path))
+            }),
+        )
+        .route(
+            "/edit/:id",
+            post({
+                let api_addr = api_addr.clone();
+                move |Path(path): Path<i32>, Form(note): Form<UpdateNoteRequest>| {
+                    route_update_note(api_addr.clone(), Path(path), Form(note))
+                }
+            }),
+        )
         .nest("/static", build_static_routes())
         .route("/search", get(search))
         .route("/recent", get(recent));
@@ -165,3 +206,20 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .await
         .unwrap_or_else(|e| panic!("Unable to serve application. Error: {:#}", e));
 }
+
+/*
+{
+    "/note":
+        {
+            "function": "route_note",
+            "template": "body/note/read.html",
+            "http_method": ["GET"],
+        },
+    "/edit":
+        {
+            "function": "route_edit",
+            "template": "body/note/edit.html",
+            "http_method": ["GET", "POST"]
+        },
+}
+*/

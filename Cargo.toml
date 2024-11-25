@@ -16,3 +16,4 @@ tokio = { version = "1.41.1", features = ["rt-multi-thread"] }
 draftsmith_rest_api = { path = "../draftsmith_rs_api" }
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.132"
+axum-extra = { version = "0.9.6", features = ["cookie"] }
