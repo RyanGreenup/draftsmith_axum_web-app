@@ -4,7 +4,6 @@ use axum::{
     routing::get,
     Form, Router,
 };
-use tower_sessions::{Session, SessionManagerLayer, MemoryStore};
 use draftsmith_rest_api::client::{
     fetch_note, notes::get_note_rendered_html, update_note, UpdateNoteRequest,
 };
@@ -12,10 +11,11 @@ use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct FlashMessage {
-    kind: String,  // "success", "error", "info", "warning"
+    kind: String, // "success", "error", "info", "warning"
     message: String,
 }
 
@@ -64,9 +64,12 @@ use crate::static_files::build_static_routes;
 // TODO Better way than using a closure?
 async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -> Html<String> {
     let id = path;
-    
+
     // Get and remove flash message
-    let flash = session.remove::<FlashMessage>("flash").await.unwrap_or(None);
+    let flash = session
+        .remove::<FlashMessage>("flash")
+        .await
+        .unwrap_or(None);
 
     // Get the note
     let note = fetch_note(&api_addr, id, true).await.unwrap_or_else(|e| {
@@ -100,16 +103,22 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
 
 async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -> Html<String> {
     let id = path;
-    
+
     // Get the note
     let note = match fetch_note(&api_addr, id, false).await {
         Ok(note) => note,
         Err(e) => {
-            session.insert("flash", FlashMessage {
-                kind: "error".to_string(),
-                message: format!("Failed to fetch note: {}", e),
-            }).await.unwrap();
-            
+            session
+                .insert(
+                    "flash",
+                    FlashMessage {
+                        kind: "error".to_string(),
+                        message: format!("Failed to fetch note: {}", e),
+                    },
+                )
+                .await
+                .unwrap();
+
             // Redirect to home page or another appropriate page when note fetch fails
             return Html(format!(
                 r#"<script>window.location.href = "/note/{}";</script>"#,
@@ -122,11 +131,17 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
     let template = match ENV.get_template("body/note/edit.html") {
         Ok(template) => template,
         Err(e) => {
-            session.insert("flash", FlashMessage {
-                kind: "error".to_string(),
-                message: format!("Failed to load template: {}", e),
-            }).await.unwrap();
-            
+            session
+                .insert(
+                    "flash",
+                    FlashMessage {
+                        kind: "error".to_string(),
+                        message: format!("Failed to load template: {}", e),
+                    },
+                )
+                .await
+                .unwrap();
+
             return Html(format!(
                 r#"<script>window.location.href = "/note/{}";</script>"#,
                 id
@@ -139,11 +154,17 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
     )) {
         Ok(result) => result,
         Err(err) => {
-            session.insert("flash", FlashMessage {
-                kind: "error".to_string(),
-                message: format!("Failed to render template: {}", err),
-            }).await.unwrap();
-            
+            session
+                .insert(
+                    "flash",
+                    FlashMessage {
+                        kind: "error".to_string(),
+                        message: format!("Failed to render template: {}", err),
+                    },
+                )
+                .await
+                .unwrap();
+
             handle_template_error(err)
         }
     };
@@ -161,16 +182,28 @@ async fn route_update_note(
 
     match update_note(&api_addr, id, note).await {
         Ok(_) => {
-            session.insert("flash", FlashMessage {
-                kind: "success".to_string(),
-                message: "Note updated successfully".to_string(),
-            }).await.unwrap();
+            session
+                .insert(
+                    "flash",
+                    FlashMessage {
+                        kind: "success".to_string(),
+                        message: "Note updated successfully".to_string(),
+                    },
+                )
+                .await
+                .unwrap();
         }
         Err(e) => {
-            session.insert("flash", FlashMessage {
-                kind: "error".to_string(),
-                message: format!("Failed to update note: {}", e),
-            }).await.unwrap();
+            session
+                .insert(
+                    "flash",
+                    FlashMessage {
+                        kind: "error".to_string(),
+                        message: format!("Failed to update note: {}", e),
+                    },
+                )
+                .await
+                .unwrap();
         }
     }
 
@@ -214,8 +247,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
 
     // Create session store
     let session_store = MemoryStore::default();
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false);
+    let session_layer = SessionManagerLayer::new(session_store).with_secure(false);
 
     // Set up Routes
     let app = Router::new()
@@ -223,7 +255,9 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             "/note/:id",
             get({
                 let api_addr = api_addr.clone();
-                move |session: Session, Path(path): Path<i32>| route_note(session, api_addr.clone(), Path(path))
+                move |session: Session, Path(path): Path<i32>| {
+                    route_note(session, api_addr.clone(), Path(path))
+                }
             }),
         )
         .route(
@@ -237,11 +271,15 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             "/edit/:id",
             get({
                 let api_addr = api_addr.clone();
-                move |session: Session, Path(path): Path<i32>| route_edit(session, api_addr.clone(), Path(path))
+                move |session: Session, Path(path): Path<i32>| {
+                    route_edit(session, api_addr.clone(), Path(path))
+                }
             })
             .post({
                 let api_addr = api_addr.clone();
-                move |session: Session, Path(path): Path<i32>, Form(note): Form<UpdateNoteRequest>| {
+                move |session: Session,
+                      Path(path): Path<i32>,
+                      Form(note): Form<UpdateNoteRequest>| {
                     route_update_note(session, api_addr.clone(), Path(path), Form(note))
                 }
             }),
