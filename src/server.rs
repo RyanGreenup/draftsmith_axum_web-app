@@ -2,19 +2,16 @@ use axum::{
     extract::{Path, Query},
     response::{Html, Redirect},
     routing::get,
-    routing::post,
     Form, Router,
 };
-use tower_sessions::{Session, SessionManagerLayer};
-use async_session::MemoryStore;
+use tower_sessions::{Session, SessionManagerLayer, MemoryStore};
 use draftsmith_rest_api::client::{
-    fetch_note, fetch_note_tree, notes::get_note_rendered_html, update_note, UpdateNoteRequest,
+    fetch_note, notes::get_note_rendered_html, update_note, UpdateNoteRequest,
 };
-use include_dir::{include_dir, Dir, File};
-use minijinja::{context, Environment, Error, ErrorKind};
+use include_dir::{include_dir, Dir};
+use minijinja::{context, Environment, Error};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct FlashMessage {
@@ -216,7 +213,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .expect("Failed to bind address");
 
     // Create session store
-    let session_store = MemoryStore::new();
+    let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false);
 
