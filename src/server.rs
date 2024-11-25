@@ -12,12 +12,7 @@ use minijinja::{context, Environment, Error};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct FlashMessage {
-    kind: String, // "success", "error", "info", "warning"
-    message: String,
-}
+use crate::flash::{FlashMessage, FlashMessageStore};
 
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 
@@ -65,11 +60,8 @@ use crate::static_files::build_static_routes;
 async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -> Html<String> {
     let id = path;
 
-    // Get and remove flash message
-    let flash = session
-        .remove::<FlashMessage>("flash")
-        .await
-        .unwrap_or(None);
+    // Get and remove flash message in one operation
+    let flash = session.take_flash().await.unwrap_or(None);
 
     // Get the note
     let note = fetch_note(&api_addr, id, true).await.unwrap_or_else(|e| {
@@ -109,13 +101,7 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
         Ok(note) => note,
         Err(e) => {
             session
-                .insert(
-                    "flash",
-                    FlashMessage {
-                        kind: "error".to_string(),
-                        message: format!("Failed to fetch note: {}", e),
-                    },
-                )
+                .set_flash(FlashMessage::error(format!("Failed to fetch note: {}", e)))
                 .await
                 .unwrap();
 
@@ -132,13 +118,7 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
         Ok(template) => template,
         Err(e) => {
             session
-                .insert(
-                    "flash",
-                    FlashMessage {
-                        kind: "error".to_string(),
-                        message: format!("Failed to load template: {}", e),
-                    },
-                )
+                .set_flash(FlashMessage::error(format!("Failed to load template: {}", e)))
                 .await
                 .unwrap();
 
@@ -155,13 +135,7 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
         Ok(result) => result,
         Err(err) => {
             session
-                .insert(
-                    "flash",
-                    FlashMessage {
-                        kind: "error".to_string(),
-                        message: format!("Failed to render template: {}", err),
-                    },
-                )
+                .set_flash(FlashMessage::error(format!("Failed to render template: {}", err)))
                 .await
                 .unwrap();
 
@@ -183,25 +157,13 @@ async fn route_update_note(
     match update_note(&api_addr, id, note).await {
         Ok(_) => {
             session
-                .insert(
-                    "flash",
-                    FlashMessage {
-                        kind: "success".to_string(),
-                        message: "Note updated successfully".to_string(),
-                    },
-                )
+                .set_flash(FlashMessage::success("Note updated successfully"))
                 .await
                 .unwrap();
         }
         Err(e) => {
             session
-                .insert(
-                    "flash",
-                    FlashMessage {
-                        kind: "error".to_string(),
-                        message: format!("Failed to update note: {}", e),
-                    },
-                )
+                .set_flash(FlashMessage::error(format!("Failed to update note: {}", e)))
                 .await
                 .unwrap();
         }
