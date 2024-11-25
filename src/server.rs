@@ -48,7 +48,7 @@ use crate::static_files::build_static_routes;
 
 // TODO None Path should be 1
 // TODO Better way than using a closure?
-async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
+async fn route_note(api_addr: String, Path(path): Path<i32>) -> Html<String> {
     let id = path;
     // Get the note
     let note = fetch_note(&api_addr, id, true).await.unwrap_or_else(|e| {
@@ -64,41 +64,57 @@ async fn render_index(api_addr: String, Path(path): Path<i32>) -> Html<String> {
         });
 
     // Load the template
-    // TODO don't panic
-    let template = ENV.get_template("body/note/base.html").unwrap_or_else(|e| {
+    let template = ENV.get_template("body/note/read.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
     });
-
-    // // Render the template
-    // // // TODO clean these up
-    // let rendered = template
-    //     .render(context!(
-    //     rendered_note => rendered_note,
-    //     note => note,
-    //     ))
-    //     .unwrap_or_else(|e| {
-    //         panic!("Failed to render template. Error: {:#}", e);
-    //     });
 
     let rendered = match template.render(context!(
     rendered_note => rendered_note,
     note => note,
     )) {
         Ok(result) => result,
-        Err(err) => {
-            eprintln!("Could not render template: {:#}", err);
-            // render causes as well
-            let mut err = &err as &dyn std::error::Error;
-            while let Some(next_err) = err.source() {
-                eprintln!();
-                eprintln!("caused by: {:#}", next_err);
-                err = next_err;
-            }
-            String::from("<h1>Error rendering Template</h1></br> See STDERR for more information")
-        }
+        Err(err) => handle_template_error(err),
     };
 
     Html(rendered)
+}
+
+/*
+async fn route_edit(api_addr: String, Path(path): Path<i32>) -> Html<String> {
+    let id = path;
+    // Get the note
+    let note = fetch_note(&api_addr, id, true).await.unwrap_or_else(|e| {
+        // TODO don't panic!
+        panic!("Failed to fetch note. Error: {:#}", e);
+    });
+
+    // Load the template
+    let template = ENV.get_template("body/note/base.html").unwrap_or_else(|e| {
+        panic!("Failed to load template. Error: {:#}", e);
+    });
+
+    let rendered = match template.render(context!(
+    rendered_note => rendered_note,
+    note => note,
+    )) {
+        Ok(result) => result,
+        Err(err) => handle_template_error(err),
+    };
+
+    Html(rendered)
+}
+*/
+
+fn handle_template_error(err: Error) -> String {
+    eprintln!("Could not render template: {:#}", err);
+    // render causes as well
+    let mut err = &err as &dyn std::error::Error;
+    while let Some(next_err) = err.source() {
+        eprintln!();
+        eprintln!("caused by: {:#}", next_err);
+        err = next_err;
+    }
+    String::from("<h1>Error rendering Template</h1></br> See STDERR for more information")
 }
 
 // TODO implement search
@@ -130,14 +146,14 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             "/note/:id",
             get({
                 let api_addr = api_addr.clone();
-                move |Path(path): Path<i32>| render_index(api_addr.clone(), Path(path))
+                move |Path(path): Path<i32>| route_note(api_addr.clone(), Path(path))
             }),
         )
         .route(
             "/",
             get({
                 let api_addr = api_addr.clone();
-                move || render_index(api_addr.clone(), Path(1))
+                move || route_note(api_addr.clone(), Path(1))
             }),
         )
         .nest("/static", build_static_routes())

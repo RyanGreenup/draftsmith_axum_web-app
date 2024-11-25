@@ -1,4 +1,7 @@
- <div class="markdown">
+{% extends "body/note/base.html" %}
+
+{% block note_content %}
+<div class="markdown">
   {{rendered_note|safe}}
 </div>
-
+{% endblock %}

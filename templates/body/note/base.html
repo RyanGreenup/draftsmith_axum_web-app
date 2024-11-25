@@ -4,7 +4,8 @@
     {% include 'action_buttons/action_buttons.html' %}
     <div class="card bg-base-200 shadow-xl p-1">
       <div class="card-body p-0">
-        {% include 'body/note/read.html' %}
+        {% block note_content %}
+        {% endblock %}
       </div>
     </div>
     {% include 'body/note/footer.html' %}
