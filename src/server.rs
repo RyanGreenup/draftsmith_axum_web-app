@@ -233,7 +233,7 @@ async fn search(Query(params): Query<std::collections::HashMap<String, String>>)
 
 // TODO implement recent
 async fn recent() -> Html<String> {
-    Html(format!("TODO Recent Pages"))
+    Html("TODO Recent Pages".to_string())
 }
 
 #[tokio::main]
