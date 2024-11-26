@@ -7,6 +7,7 @@ use axum::{
 use draftsmith_rest_api::client::{
     fetch_note, notes::get_note_rendered_html, update_note, UpdateNoteRequest
 };
+use crate::static_files::build_static_routes;
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
 use once_cell::sync::Lazy;
@@ -52,7 +53,6 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     env
 });
 
-use crate::static_files::build_static_routes;
 
 // TODO None Path should be 1
 // TODO Better way than using a closure?
