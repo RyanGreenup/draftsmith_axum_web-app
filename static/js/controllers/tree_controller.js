@@ -32,18 +32,27 @@ export default class extends Controller {
   handleDragOver(event) {
     // Prevent default to allow drop
     event.preventDefault()
+    
+    // Remove drag-over class from all notes first
+    this.element.querySelectorAll('.note-item').forEach(item => {
+        item.classList.remove('drag-over')
+    })
+    
+    // Add drag-over class only to the closest note-item
     const noteItem = event.target.closest('.note-item')
     if (noteItem) {
-      // Add drag-over class for visual feedback
-      noteItem.classList.add('drag-over')
+        noteItem.classList.add('drag-over')
     }
   }
 
   handleDragLeave(event) {
-    const noteItem = event.target.closest('.note-item')
-    if (noteItem) {
-      // Remove drag-over class when leaving
-      noteItem.classList.remove('drag-over')
+    // Only remove the class if we're actually leaving the note item
+    // and not just moving between its children
+    const relatedTarget = event.relatedTarget
+    const currentNoteItem = event.target.closest('.note-item')
+    
+    if (currentNoteItem && !currentNoteItem.contains(relatedTarget)) {
+        currentNoteItem.classList.remove('drag-over')
     }
   }
 
