@@ -14,7 +14,7 @@ use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
 use once_cell::sync::Lazy;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
-use html_builder::build_note_tree_html;
+use crate::html_builder::build_note_tree_html;
 
 
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
