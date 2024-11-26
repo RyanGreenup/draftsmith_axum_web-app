@@ -6,6 +6,7 @@ use axum::{
     routing::get,
     Form, Router,
 };
+use serde::Deserialize;
 use draftsmith_rest_api::client::{
     fetch_note, get_note_breadcrumbs, notes::get_note_rendered_html, update_note, NoteBreadcrumb,
     UpdateNoteRequest, fetch_note_tree, attach_child_note, detach_child_note
@@ -220,6 +221,58 @@ async fn recent() -> Html<String> {
     Html("TODO Recent Pages".to_string())
 }
 
+#[derive(Deserialize)]
+struct MoveNoteForm {
+    new_parent_id: i32,
+}
+
+async fn route_move_note_get(
+    api_addr: String,
+    Path(note_id): Path<i32>,
+) -> Html<String> {
+    let template = ENV.get_template("body/note/move.html").unwrap();
+    
+    let rendered = template.render(context!(
+        note_id => note_id,
+    )).unwrap_or_else(handle_template_error);
+
+    Html(rendered)
+}
+
+async fn route_move_note_post(
+    session: Session,
+    api_addr: String,
+    Path(note_id): Path<i32>,
+    Form(form): Form<MoveNoteForm>,
+) -> Redirect {
+    // First detach the note from its current parent
+    if let Err(e) = detach_child_note(&api_addr, note_id).await {
+        session
+            .set_flash(FlashMessage::error(format!("Failed to detach note: {}", e)))
+            .await
+            .unwrap();
+        return Redirect::to(&format!("/note/{note_id}"));
+    }
+
+    // Then attach it to the new parent
+    match attach_child_note(&api_addr, note_id, form.new_parent_id).await {
+        Ok(_) => {
+            session
+                .set_flash(FlashMessage::success("Note moved successfully"))
+                .await
+                .unwrap();
+        }
+        Err(e) => {
+            session
+                .set_flash(FlashMessage::error(format!("Failed to move note: {}", e)))
+                .await
+                .unwrap();
+        }
+    }
+
+    Redirect::to(&format!("/note/{note_id}"))
+}
+
 #[tokio::main]
 pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str, port: &str) {
     let api_addr = format!("{api_scheme}://{api_host}:{api_port}");
@@ -271,6 +324,23 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .nest("/static", build_static_routes())
         .route("/search", get(search))
         .route("/recent", get(recent))
+        .route(
+            "/note/:id/move",
+            get({
+                let api_addr = api_addr.clone();
+                move |Path(path): Path<i32>| {
+                    route_move_note_get(api_addr.clone(), Path(path))
+                }
+            })
+            .post({
+                let api_addr = api_addr.clone();
+                move |session: Session,
+                      Path(path): Path<i32>,
+                      Form(form): Form<MoveNoteForm>| {
+                    route_move_note_post(session, api_addr.clone(), Path(path), Form(form))
+                }
+            }),
+        )
         .layer(session_layer);
 
     // Do it!

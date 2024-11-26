@@ -4,7 +4,7 @@
 
   <!-- Main Form for Moving Note -->
   <form
-    action="{{ url_for('move_note', note_id=note_id) }}"
+    action="/note/{{ note_id }}/move"
     method="POST"
     class="space-y-4"
   >
@@ -33,7 +33,7 @@
         Move Note
       </button>
       <a
-        href="{{ url_for('note_detail', note_id=note_id) }}"
+        href="/note/{{ note_id }}"
         class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors duration-200 text-center"
       >
         Cancel
@@ -46,7 +46,7 @@
 
   <!-- Detach Form -->
   <form
-    action="{{ url_for('detach_note', note_id=note_id) }}"
+    action="/note/{{ note_id }}/detach"
     method="POST"
     class="mt-2"
   >
