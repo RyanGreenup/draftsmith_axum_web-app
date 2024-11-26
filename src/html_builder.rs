@@ -62,9 +62,7 @@ fn render_node(
 
     // Summary with conditional styling
     let title = node
-        .title
-        .as_ref()
-        .map(String::as_str)
+        .title.as_deref()
         .unwrap_or("Untitled");
     if Some(node.id) == current_note_id {
         write!(
