@@ -14,6 +14,8 @@ use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
 use once_cell::sync::Lazy;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
+use html_builder::build_note_tree_html;
+
 
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 
@@ -56,6 +58,7 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 
 // TODO None Path should be 1
 // TODO Better way than using a closure?
+// TODO generalize these to inherit similar to the templates
 async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -> Html<String> {
     let id = path;
 
@@ -82,6 +85,8 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
         // TODO don't panic!
         panic!("Failed to fetch note tree. Error: {:#}", e);
     });
+    let tree = build_note_tree_html(tree, id, breadcrumbs.unwrap_or(Vec::new()).iter().map(|b| b.id).collect());
+
 
     // Render the first note
     let rendered_note = get_note_rendered_html(&api_addr, id)
