@@ -9,7 +9,7 @@ pub fn build_note_tree_html(
     let mut html = String::new();
     write!(
         html,
-        r#"<ul class="menu bg-base-200 rounded-box w-full md:w-56">"#
+        r#"<ul class="menu bg-base-200 rounded-box w-full md:w-56" data-controller="tree">"#
     )
     .unwrap();
 
