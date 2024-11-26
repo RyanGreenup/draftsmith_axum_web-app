@@ -47,17 +47,38 @@ export default class extends Controller {
     const noteItem = event.target.closest('.note-item')
     if (noteItem) {
         noteItem.classList.add('drag-over')
+        
+        // Handle details opening, similar to hover behavior
+        const details = noteItem.querySelector('details')
+        if (details && !details.open) {
+            // Store original state if not already stored
+            if (!this.originalDetailsStates.has(details)) {
+                this.originalDetailsStates.set(details, details.open)
+            }
+            details.open = true
+        }
     }
   }
 
   handleDragLeave(event) {
-    // Only remove the class if we're actually leaving the note item
+    // Only handle if we're actually leaving the note item
     // and not just moving between its children
     const relatedTarget = event.relatedTarget
     const currentNoteItem = event.target.closest('.note-item')
     
     if (currentNoteItem && !currentNoteItem.contains(relatedTarget)) {
         currentNoteItem.classList.remove('drag-over')
+        
+        // Handle details closing, similar to hover behavior
+        const details = currentNoteItem.querySelector('details')
+        if (details) {
+            // Restore original state if we have it stored
+            const originalState = this.originalDetailsStates.get(details)
+            if (originalState !== undefined) {
+                details.open = originalState
+                this.originalDetailsStates.delete(details)
+            }
+        }
     }
   }
 
