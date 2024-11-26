@@ -51,49 +51,46 @@ export default class extends Controller {
   }
 
   async handleDrop(event) {
-    event.preventDefault()
+    event.preventDefault();
     
-    const targetItem = event.target.closest('.note-item')
-    if (!targetItem) return
+    const targetItem = event.target.closest('.note-item');
+    if (!targetItem) return;
     
     // Remove visual feedback
-    targetItem.classList.remove('drag-over')
+    targetItem.classList.remove('drag-over');
     
-    const draggedNoteId = event.dataTransfer.getData('text/plain')
-    const targetNoteId = targetItem.dataset.noteId
+    const draggedNoteId = event.dataTransfer.getData('text/plain');
+    const targetNoteId = targetItem.dataset.noteId;
     
     // Don't do anything if dropping on itself
     if (draggedNoteId === targetNoteId) {
-      return
+        return;
     }
 
     try {
-      // Make the API call to move the note
-      const response = await fetch(`/note/${draggedNoteId}/move`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `new_parent_id=${targetNoteId}`
-      })
+        // Make the API call to move the note
+        const response = await fetch(`/note/${draggedNoteId}/move`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            // Properly format the form data
+            body: new URLSearchParams({
+                'new_parent_id': targetNoteId
+            }).toString()
+        });
 
-      if (!response.ok) {
-        throw new Error('Move failed')
-      }
+        if (!response.ok) {
+            throw new Error(`Move failed: ${response.statusText}`);
+        }
 
-      // Reload the page to show the updated tree
-      window.location.reload()
+        // Redirect to the note's page to show the result and flash message
+        window.location.href = `/note/${draggedNoteId}`;
+        
     } catch (error) {
-      console.error('Error moving note:', error)
-      // Show error message to user
-      const flash = document.getElementById('flash-messages')
-      if (flash) {
-        flash.innerHTML = `
-          <div class="alert alert-error">
-            <span>Failed to move note. Please try again.</span>
-          </div>
-        `
-      }
+        console.error('Error moving note:', error);
+        // Force a page reload to show any error flash messages
+        window.location.href = `/note/${draggedNoteId}`;
     }
   }
 }
