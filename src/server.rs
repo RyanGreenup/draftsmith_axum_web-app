@@ -131,6 +131,28 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
         }
     };
 
+    // Get the tree and breadcrumbs
+    let breadcrumbs: Option<Vec<NoteBreadcrumb>> = match get_note_breadcrumbs(&api_addr, id).await {
+        Ok(b) => Some(b),
+        Err(e) => {
+            eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
+            None
+        }
+    };
+
+    // Get the Tree
+    let tree = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
+        // TODO don't panic!
+        panic!("Failed to fetch note tree. Error: {:#}", e);
+    });
+    let tree = build_note_tree_html(
+        tree,
+        Some(id),
+        breadcrumbs
+            .as_ref()
+            .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
+    );
+
     // Load the template
     let template = match ENV.get_template("body/note/edit.html") {
         Ok(template) => template,
@@ -152,6 +174,8 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
 
     let rendered = match template.render(context!(
         note => note,
+        tree => tree,
+        breadcrumbs => breadcrumbs,
     )) {
         Ok(result) => result,
         Err(err) => {
@@ -286,40 +310,60 @@ async fn route_detach_note_post(
     Redirect::to(&format!("/note/{note_id}"))
 }
 
-
 async fn route_move_note_post(
     session: Session,
     api_addr: String,
     Path(note_id): Path<i32>,
     Form(form): Form<MoveNoteForm>,
 ) -> Redirect {
-    // First detach the note from its current parent
-    match detach_child_note(&api_addr, note_id).await {
-        Ok(_) => {
-            // Then attach it to the new parent
-            let attach_request = AttachChildRequest {
-                parent_note_id: Some(form.new_parent_id),
-                child_note_id: note_id,
-            };
+    // Get the breadcrumbs to check for parents
+    let breadcrumbs: Option<Vec<NoteBreadcrumb>> =
+        match get_note_breadcrumbs(&api_addr, note_id).await {
+            Ok(b) => Some(b),
+            Err(e) => {
+                eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
+                None
+            }
+        };
 
-            match attach_child_note(&api_addr, attach_request).await {
-                Ok(_) => {
-                    session
-                        .set_flash(FlashMessage::success("Note moved successfully"))
-                        .await
-                        .unwrap();
-                }
+    // Detach the note from its current parent if it has one
+    if let Some(bc) = breadcrumbs {
+        if bc.len() > 1 {
+            match detach_child_note(&api_addr, note_id).await {
+                Ok(_) => (),
                 Err(e) => {
                     session
-                        .set_flash(FlashMessage::error(format!("Failed to move note: {}", e)))
+                        .set_flash(FlashMessage::error(format!("Failed to detach note: {}", e)))
                         .await
-                        .unwrap();
+                        .unwrap_or_else(|e| {
+                            eprintln!("Failed to set flash message: {:#?}", e);
+                        });
+                    return Redirect::to(&format!("/note/{note_id}"));
                 }
             }
         }
+    }
+
+    // NOTE attaching to id=0 will effectively detach
+    // I am relying on this in ../static/js/controllers/tree_controller.js
+    // Probably a candidate for a refactor
+    // Then attach it to the new parent
+    let attach_request = AttachChildRequest {
+        parent_note_id: Some(form.new_parent_id),
+        child_note_id: note_id,
+    };
+
+    // Flash the result
+    match attach_child_note(&api_addr, attach_request).await {
+        Ok(_) => {
+            session
+                .set_flash(FlashMessage::success("Note moved successfully"))
+                .await
+                .unwrap();
+        }
         Err(e) => {
             session
-                .set_flash(FlashMessage::error(format!("Failed to detach note: {}", e)))
+                .set_flash(FlashMessage::error(format!("Failed to move note: {}", e)))
                 .await
                 .unwrap();
         }
