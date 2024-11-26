@@ -97,6 +97,9 @@ export default class extends Controller {
     const noteItem = event.target.closest('.note-item')
     const details = noteItem.querySelector('details')
 
+    // Add hover styling
+    noteItem.classList.add('bg-base-300', 'bg-opacity-50')
+
     if (details && !details.open) {
         // Store original state if not already stored
         if (!this.originalDetailsStates.has(details)) {
@@ -111,6 +114,9 @@ export default class extends Controller {
     const details = noteItem.querySelector('details')
     /* const sidebar = this.element.closest('.sidebar') */
     const sidebar = document.getElementById('pages-drawer');
+
+    // Remove hover styling
+    noteItem.classList.remove('bg-base-300', 'bg-opacity-50')
 
     // Only reset if we're leaving the sidebar entirely
     if (details && !sidebar.contains(event.relatedTarget)) {
