@@ -2,10 +2,13 @@ use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::static_files::build_static_routes;
 use axum::{
     extract::{Path, Query},
-    response::{Html, Redirect},
-    routing::get,
-    Form, Router,
+    response::{Html, Redirect, IntoResponse},
+    routing::{get, post},
+    Form, Router, Json,
+    http::StatusCode,
 };
+use serde::Deserialize;
+use serde_json::json;
 use draftsmith_rest_api::client::{
     fetch_note, get_note_breadcrumbs, notes::get_note_rendered_html, update_note, NoteBreadcrumb,
     UpdateNoteRequest, fetch_note_tree, attach_child_note, detach_child_note
@@ -229,6 +232,56 @@ async fn recent() -> Html<String> {
     Html("TODO Recent Pages".to_string())
 }
 
+#[derive(Deserialize)]
+struct AttachNoteRequest {
+    note_id: i32,
+    parent_id: i32,
+}
+
+async fn route_attach_note(
+    api_addr: String,
+    Json(payload): Json<AttachNoteRequest>,
+) -> impl IntoResponse {
+    let attach_request = AttachChildRequest {
+        parent_id: payload.parent_id,
+        child_id: payload.note_id,
+    };
+
+    match attach_child_note(&api_addr, attach_request).await {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(json!({ "success": true }))
+        ).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e.to_string() }))
+        ).into_response(),
+    }
+}
+
+async fn route_detach_note(
+    session: Session,
+    api_addr: String,
+    Path(note_id): Path<i32>,
+) -> Redirect {
+    match detach_child_note(&api_addr, note_id).await {
+        Ok(_) => {
+            session
+                .set_flash(FlashMessage::success("Note detached successfully"))
+                .await
+                .unwrap();
+        }
+        Err(e) => {
+            session
+                .set_flash(FlashMessage::error(format!("Failed to detach note: {}", e)))
+                .await
+                .unwrap();
+        }
+    }
+
+    Redirect::to(&format!("/note/{note_id}"))
+}
+
 #[tokio::main]
 pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str, port: &str) {
     let api_addr = format!("{api_scheme}://{api_host}:{api_port}");
@@ -280,6 +333,24 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .nest("/static", build_static_routes())
         .route("/search", get(search))
         .route("/recent", get(recent))
+        .route(
+            "/note/:id/detach",
+            post({
+                let api_addr = api_addr.clone();
+                move |session: Session, Path(path): Path<i32>| {
+                    route_detach_note(session, api_addr.clone(), Path(path))
+                }
+            }),
+        )
+        .route(
+            "/api/attach_note",
+            post({
+                let api_addr = api_addr.clone();
+                move |Json(payload): Json<AttachNoteRequest>| {
+                    route_attach_note(api_addr.clone(), Json(payload))
+                }
+            }),
+        )
         .layer(session_layer);
 
     // Do it!
