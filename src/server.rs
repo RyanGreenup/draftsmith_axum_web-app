@@ -286,6 +286,7 @@ async fn route_detach_note_post(
     Redirect::to(&format!("/note/{note_id}"))
 }
 
+
 async fn route_move_note_post(
     session: Session,
     api_addr: String,
