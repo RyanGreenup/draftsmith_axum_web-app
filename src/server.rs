@@ -8,7 +8,7 @@ use axum::{
 };
 use draftsmith_rest_api::client::{
     fetch_note, get_note_breadcrumbs, notes::get_note_rendered_html, update_note, NoteBreadcrumb,
-    UpdateNoteRequest,
+    UpdateNoteRequest, fetch_note_tree
 };
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
@@ -77,6 +77,12 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
         }
     };
 
+    // Get the Tree
+    let tree = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
+        // TODO don't panic!
+        panic!("Failed to fetch note tree. Error: {:#}", e);
+    });
+
     // Render the first note
     let rendered_note = get_note_rendered_html(&api_addr, id)
         .await
@@ -94,6 +100,7 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
         note => note,
         breadcrumbs => breadcrumbs,
         flash => flash,
+        tree => tree,
     )) {
         Ok(result) => result,
         Err(err) => handle_template_error(err),
