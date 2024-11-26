@@ -1,5 +1,18 @@
-{% for node in tree %}
+{% macro render_node(node) %}
   <li>
     <a href="/note/{{ node.id }}">{{ node.title }}</a>
+    {% if node.children and node.children | length > 0 %}
+      <ul>
+        {% for child in node.children %}
+          {{ render_node(child) }}
+        {% endfor %}
+      </ul>
+    {% endif %}
   </li>
-{% endfor %}
+{% endmacro %}
+
+<ul class="note-tree">
+  {% for node in tree %}
+    {{ render_node(node) }}
+  {% endfor %}
+</ul>
