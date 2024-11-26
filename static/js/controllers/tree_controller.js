@@ -2,8 +2,11 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   connect() {
+    console.log("TreeController connected");
+    
     // Initialize all note items as draggable
     this.element.querySelectorAll('.note-item').forEach(item => {
+      console.log("Setting up draggable item:", item);
       item.addEventListener('dragstart', this.handleDragStart.bind(this))
       item.addEventListener('dragover', this.handleDragOver.bind(this))
       item.addEventListener('drop', this.handleDrop.bind(this))
