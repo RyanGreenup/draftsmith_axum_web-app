@@ -4,7 +4,7 @@ use crate::static_files::build_static_routes;
 use axum::{
     extract::{Path, Query},
     response::{Html, Redirect},
-    routing::get,
+    routing::{get, post},
     Form, Router,
 };
 use draftsmith_rest_api::client::{
@@ -263,55 +263,62 @@ async fn route_move_note_get(api_addr: String, Path(note_id): Path<i32>) -> Html
     Html(rendered)
 }
 
+async fn route_detach_note_post(
+    session: Session,
+    api_addr: String,
+    Path(note_id): Path<i32>,
+) -> Redirect {
+    match detach_child_note(&api_addr, note_id).await {
+        Ok(_) => {
+            session
+                .set_flash(FlashMessage::success("Note detached successfully"))
+                .await
+                .unwrap();
+        }
+        Err(e) => {
+            session
+                .set_flash(FlashMessage::error(format!("Failed to detach note: {}", e)))
+                .await
+                .unwrap();
+        }
+    }
+
+    Redirect::to(&format!("/note/{note_id}"))
+}
+
 async fn route_move_note_post(
     session: Session,
     api_addr: String,
     Path(note_id): Path<i32>,
     Form(form): Form<MoveNoteForm>,
 ) -> Redirect {
-    // Get the breadcrumbs
-    let breadcrumbs: Option<Vec<NoteBreadcrumb>> =
-        match get_note_breadcrumbs(&api_addr, note_id).await {
-            Ok(b) => Some(b),
-            Err(e) => {
-                eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
-                None
-            }
-        };
-
     // First detach the note from its current parent
-    if let Some(bcvec) = breadcrumbs {
-        // Don't count the last breadcrumb which is itself, so > 1
-        // No breadcrumbs, no parents, no need to detach
-        if bcvec.len() > 1 {
-            println!("Detaching note from parent");
-            println!("Breadcrumbs: {:#?}", bcvec);
-            if let Err(e) = detach_child_note(&api_addr, note_id).await {
-                session
-                    .set_flash(FlashMessage::error(format!("Failed to detach note: {}", e)))
-                    .await
-                    .unwrap();
-                return Redirect::to(&format!("/note/{note_id}"));
-            }
-        }
-    }
-
-    // Then attach it to the new parent
-    let attach_request = AttachChildRequest {
-        parent_note_id: Some(form.new_parent_id),
-        child_note_id: note_id,
-    };
-
-    match attach_child_note(&api_addr, attach_request).await {
+    match detach_child_note(&api_addr, note_id).await {
         Ok(_) => {
-            session
-                .set_flash(FlashMessage::success("Note moved successfully"))
-                .await
-                .unwrap();
+            // Then attach it to the new parent
+            let attach_request = AttachChildRequest {
+                parent_note_id: Some(form.new_parent_id),
+                child_note_id: note_id,
+            };
+
+            match attach_child_note(&api_addr, attach_request).await {
+                Ok(_) => {
+                    session
+                        .set_flash(FlashMessage::success("Note moved successfully"))
+                        .await
+                        .unwrap();
+                }
+                Err(e) => {
+                    session
+                        .set_flash(FlashMessage::error(format!("Failed to move note: {}", e)))
+                        .await
+                        .unwrap();
+                }
+            }
         }
         Err(e) => {
             session
-                .set_flash(FlashMessage::error(format!("Failed to move note: {}", e)))
+                .set_flash(FlashMessage::error(format!("Failed to detach note: {}", e)))
                 .await
                 .unwrap();
         }
@@ -381,6 +388,15 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
                 let api_addr = api_addr.clone();
                 move |session: Session, Path(path): Path<i32>, Form(form): Form<MoveNoteForm>| {
                     route_move_note_post(session, api_addr.clone(), Path(path), Form(form))
+                }
+            }),
+        )
+        .route(
+            "/note/:id/detach",
+            post({
+                let api_addr = api_addr.clone();
+                move |session: Session, Path(path): Path<i32>| {
+                    route_detach_note_post(session, api_addr.clone(), Path(path))
                 }
             }),
         )
