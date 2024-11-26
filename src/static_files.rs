@@ -7,6 +7,8 @@ static CSS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/css");
 static JS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/js");
 static MEDIA_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/media");
 static KATEX_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/katex");
+static STIMULUS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/node_modules/@hotwired/stimulus/dist/");
+
 const NOT_FOUND_RESPONSE: &[u8] = b"Not Found";
 
 // How to load a static file
@@ -22,6 +24,7 @@ pub fn build_static_routes() -> Router {
         .route("/katex/dist/fonts/:path", get(get_static_katex_fonts))
         .route("/css/:path", get(get_static_css))
         .route("/js/:path", get(get_static_js))
+        .route("/js/stimulus/:path", get(get_stimulus_js))
         .route("/media/:path", get(get_static_media))
 }
 
@@ -108,6 +111,10 @@ fn determine_content_type(path: &std::path::Path) -> String {
 
 async fn get_static_js(Path(path): Path<String>) -> impl IntoResponse {
     get_static_file(&JS_DIR, path).await
+}
+
+async fn get_stimulus_js(Path(path): Path<String>) -> impl IntoResponse {
+    get_static_file(&STIMULUS_DIR, path).await
 }
 
 async fn get_static_media(Path(path): Path<String>) -> impl IntoResponse {
