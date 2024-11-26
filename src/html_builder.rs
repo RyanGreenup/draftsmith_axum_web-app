@@ -10,7 +10,7 @@ pub fn build_note_tree_html(
     write!(html, r#"<ul class="menu bg-base-200 rounded-box w-full md:w-56">"#).unwrap();
 
     for node in &tree {
-        render_node(&mut html, node, current_note_id, &parent_ids);
+        render_node(&mut html, node, current_note_id, &parent_ids, -1, 4);
     }
 
     html.push_str("</ul>");
@@ -21,7 +21,9 @@ fn render_node(
     html: &mut String,
     node: &NoteTreeNode,
     current_note_id: i32,
-    parent_ids: &[i32]
+    parent_ids: &[i32],
+    levels_below_current: i32,
+    max_levels_below: i32
 ) {
     // Start list item with conditional classes
     if node.id == current_note_id {
@@ -35,9 +37,12 @@ fn render_node(
     }
 
     // Details tag
-    let is_open = parent_ids.contains(&node.id) || current_note_id == node.id;
+    let is_parent = parent_ids.contains(&node.id);
+    let is_current = current_note_id == node.id;
+    let is_within_unfold_levels = levels_below_current >= 0 && levels_below_current < max_levels_below;
+    
     write!(html, r#"<details{}"#,
-        if is_open { " open" } else { "" }
+        if is_parent || is_current || is_within_unfold_levels { " open" } else { "" }
     ).unwrap();
 
     // Summary with conditional styling
@@ -58,7 +63,18 @@ fn render_node(
     if !node.children.is_empty() {
         html.push_str("<ul>");
         for child in &node.children {
-            render_node(html, child, current_note_id, parent_ids);
+            let next_level = if is_current {
+                // Start counting levels below current note
+                0
+            } else if levels_below_current >= 0 {
+                // Continue counting levels below current note
+                levels_below_current + 1
+            } else {
+                // Not in the current note's subtree
+                -1
+            };
+            
+            render_node(html, child, current_note_id, parent_ids, next_level, max_levels_below);
         }
         html.push_str("</ul>");
     }
