@@ -8,7 +8,7 @@ use axum::{
 };
 use draftsmith_rest_api::client::{
     fetch_note, get_note_breadcrumbs, notes::get_note_rendered_html, update_note, NoteBreadcrumb,
-    UpdateNoteRequest, fetch_note_tree
+    UpdateNoteRequest, fetch_note_tree, attach_child_note, detach_child_note
 };
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
