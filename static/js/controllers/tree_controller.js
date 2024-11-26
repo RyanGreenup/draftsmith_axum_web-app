@@ -4,6 +4,9 @@ export default class extends Controller {
   connect() {
     console.log("TreeController connected");
     
+    // Track original states of details elements
+    this.originalDetailsStates = new WeakMap()
+    
     // Initialize all note items as draggable
     this.element.querySelectorAll('.note-item').forEach(item => {
       console.log("Setting up draggable item:", item);
@@ -12,6 +15,8 @@ export default class extends Controller {
       item.addEventListener('drop', this.handleDrop.bind(this))
       item.addEventListener('dragend', this.handleDragEnd.bind(this))
       item.addEventListener('dragleave', this.handleDragLeave.bind(this))
+      item.addEventListener('mouseenter', this.handleNoteHover.bind(this))
+      item.addEventListener('mouseleave', this.handleNoteLeave.bind(this))
     })
 
     // Add drop zone for detaching notes
@@ -62,6 +67,36 @@ export default class extends Controller {
       item.classList.remove('dragging', 'drag-over')
     })
     document.body.classList.remove('detach-drop-zone')
+    
+    // Clear stored states
+    this.originalDetailsStates = new WeakMap()
+  }
+
+  handleNoteHover(event) {
+    const noteItem = event.target.closest('.note-item')
+    const details = noteItem.querySelector('details')
+    
+    if (details && !details.open) {
+        // Store original state if not already stored
+        if (!this.originalDetailsStates.has(details)) {
+            this.originalDetailsStates.set(details, details.open)
+        }
+        details.open = true
+    }
+  }
+
+  handleNoteLeave(event) {
+    const noteItem = event.target.closest('.note-item')
+    const details = noteItem.querySelector('details')
+    
+    if (details) {
+        // Restore original state if we have it stored
+        const originalState = this.originalDetailsStates.get(details)
+        if (originalState !== undefined) {
+            details.open = originalState
+            this.originalDetailsStates.delete(details)
+        }
+    }
   }
 
   async handleDrop(event) {
