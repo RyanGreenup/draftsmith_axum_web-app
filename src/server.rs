@@ -10,7 +10,6 @@ use draftsmith_rest_api::client::{
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 use crate::flash::{FlashMessage, FlashMessageStore};
 
