@@ -1,6 +1,6 @@
 use axum::async_trait;
 use serde::{Deserialize, Serialize};
-use tower_sessions::Session;
+use tower_sessions::{Session, Error as SessionError};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FlashMessage {
@@ -40,17 +40,17 @@ impl FlashMessage {
 
 #[async_trait]
 pub trait FlashMessageStore {
-    async fn set_flash(&self, message: FlashMessage) -> Result<(), tower_sessions::Error>;
-    async fn take_flash(&self) -> Result<Option<FlashMessage>, tower_sessions::Error>;
+    async fn set_flash(&self, message: FlashMessage) -> Result<(), SessionError>;
+    async fn take_flash(&self) -> Result<Option<FlashMessage>, SessionError>;
 }
 
 #[async_trait]
 impl FlashMessageStore for Session {
-    async fn set_flash(&self, message: FlashMessage) -> Result<(), tower_sessions::Error> {
+    async fn set_flash(&self, message: FlashMessage) -> Result<(), SessionError> {
         self.insert("flash", message).await
     }
 
-    async fn take_flash(&self) -> Result<Option<FlashMessage>, tower_sessions::Error> {
+    async fn take_flash(&self) -> Result<Option<FlashMessage>, SessionError> {
         self.remove::<FlashMessage>("flash").await
     }
 }
