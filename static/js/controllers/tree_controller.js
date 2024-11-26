@@ -7,38 +7,57 @@ export default class extends Controller {
       item.addEventListener('dragstart', this.handleDragStart.bind(this))
       item.addEventListener('dragover', this.handleDragOver.bind(this))
       item.addEventListener('drop', this.handleDrop.bind(this))
+      item.addEventListener('dragend', this.handleDragEnd.bind(this))
+      item.addEventListener('dragleave', this.handleDragLeave.bind(this))
     })
   }
 
   handleDragStart(event) {
+    const noteItem = event.target.closest('.note-item')
     // Store the dragged note's ID
-    event.dataTransfer.setData('text/plain', event.target.dataset.noteId)
-    event.target.classList.add('opacity-50')
+    event.dataTransfer.setData('text/plain', noteItem.dataset.noteId)
+    // Add dragging class for visual feedback
+    noteItem.classList.add('dragging')
+    // Set the drag effect
+    event.dataTransfer.effectAllowed = 'move'
   }
 
   handleDragOver(event) {
     // Prevent default to allow drop
     event.preventDefault()
-    // Add visual feedback
-    event.target.closest('.note-item').classList.add('bg-base-300')
+    const noteItem = event.target.closest('.note-item')
+    if (noteItem) {
+      // Add drag-over class for visual feedback
+      noteItem.classList.add('drag-over')
+    }
+  }
+
+  handleDragLeave(event) {
+    const noteItem = event.target.closest('.note-item')
+    if (noteItem) {
+      // Remove drag-over class when leaving
+      noteItem.classList.remove('drag-over')
+    }
   }
 
   handleDragEnd(event) {
-    // Remove visual feedback
-    event.target.classList.remove('opacity-50')
+    // Remove all drag-related classes
     this.element.querySelectorAll('.note-item').forEach(item => {
-      item.classList.remove('bg-base-300')
+      item.classList.remove('dragging', 'drag-over')
     })
   }
 
   async handleDrop(event) {
     event.preventDefault()
     
+    const targetItem = event.target.closest('.note-item')
+    if (!targetItem) return
+    
     // Remove visual feedback
-    event.target.closest('.note-item').classList.remove('bg-base-300')
+    targetItem.classList.remove('drag-over')
     
     const draggedNoteId = event.dataTransfer.getData('text/plain')
-    const targetNoteId = event.target.closest('.note-item').dataset.noteId
+    const targetNoteId = targetItem.dataset.noteId
     
     // Don't do anything if dropping on itself
     if (draggedNoteId === targetNoteId) {
