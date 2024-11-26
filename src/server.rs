@@ -85,7 +85,11 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
         // TODO don't panic!
         panic!("Failed to fetch note tree. Error: {:#}", e);
     });
-    let tree = build_note_tree_html(tree, id, breadcrumbs.unwrap_or(Vec::new()).iter().map(|b| b.id).collect());
+    let tree = build_note_tree_html(
+        tree, 
+        id, 
+        breadcrumbs.clone().unwrap_or(Vec::new()).iter().map(|b| b.id).collect()
+    );
 
 
     // Render the first note
