@@ -8,6 +8,7 @@ static JS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/js");
 static MEDIA_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/media");
 static KATEX_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/katex");
 static STIMULUS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/node_modules/@hotwired/stimulus/dist/");
+static CONTROLLERS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/js/controllers");
 
 const NOT_FOUND_RESPONSE: &[u8] = b"Not Found";
 
@@ -25,6 +26,7 @@ pub fn build_static_routes() -> Router {
         .route("/css/:path", get(get_static_css))
         .route("/js/:path", get(get_static_js))
         .route("/js/stimulus/:path", get(get_stimulus_js))
+        .route("/js/controllers/:path", get(get_controllers))
         .route("/media/:path", get(get_static_media))
 }
 
@@ -123,4 +125,8 @@ async fn get_static_media(Path(path): Path<String>) -> impl IntoResponse {
 
 async fn get_static_css(Path(path): Path<String>) -> impl IntoResponse {
     get_static_file(&CSS_DIR, path).await
+}
+
+async fn get_controllers(Path(path): Path<String>) -> impl IntoResponse {
+    get_static_file(&CONTROLLERS_DIR, path).await
 }

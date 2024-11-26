@@ -16,3 +16,12 @@
 {% include 'katex/katex_css.html' %}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Add Stimulus -->
+<script type="module">
+  import { Application } from "/static/js/stimulus/stimulus.js"
+  import TreeController from "/static/js/controllers/tree_controller.js"
+
+  window.Stimulus = Application.start()
+  Stimulus.register("tree", TreeController)
+</script>
