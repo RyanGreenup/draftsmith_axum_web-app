@@ -1,3 +1,11 @@
+{% macro link_item(href, text) %}
+    <li>
+        <a
+            href="{{ href }}"
+            class="btn btn-ghost btn-sm justify-start"
+        >{{ text }}</a>
+    </li>
+{% endmacro %}
 <div class="flex-none">
   <ul class="menu menu-horizontal px-1 flex-wrap gap-2">
     <!-- Actions Dropdown -->
@@ -10,13 +18,15 @@
         <ul
           class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-200 rounded-box w-52"
         >
-          {% if note %} {{ menu_item(c("/edit/", note.id), "Edit") |safe}} {{
-          menu_item(c("/create/", note.id), "New Subpage") |safe}} {{
-          menu_item(c(c("/note/", note.id), "move"), "Move") |safe}} {{
-          menu_item(c("/manage_tags/", note.id), "Assign Tags") |safe}} {{
-          menu_item(c("/manage_tags/", note.id), "Assign Tags") |safe}} {% endif
-          %} {{ menu_item("/create", "Create") |safe}} {{ menu_item("/recent",
-          "Recent") |safe}} {% if note %}
+          {% if note %}
+          {{ link_item("/edit/" ~ note.id, "Edit") }}
+          {{ link_item("/create/" ~ note.id, "New Subpage") }}
+          {{ link_item("/manage_tags/" ~ note.id, "Assign Tags") }}
+          {% endif %}
+          {{ link_item("/create", "Create") }}
+          {{ link_item("/recent", "Recent") }}
+          {% if note %}
+          {{ link_item("/note/" ~ note.id ~ "/move", "Move") }}
           <li>
             <form
               action="/note/{note.id}/delete"

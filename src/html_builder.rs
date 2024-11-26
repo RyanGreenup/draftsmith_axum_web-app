@@ -40,7 +40,7 @@ fn render_node(
     let is_parent = parent_ids.contains(&node.id);
     let is_current = current_note_id == node.id;
     let is_within_unfold_levels = levels_below_current >= 0 && levels_below_current < max_levels_below;
-    
+
     write!(html, r#"<details{}"#,
         if is_parent || is_current || is_within_unfold_levels { " open" } else { "" }
     ).unwrap();
@@ -73,7 +73,7 @@ fn render_node(
                 // Not in the current note's subtree
                 -1
             };
-            
+
             render_node(html, child, current_note_id, parent_ids, next_level, max_levels_below);
         }
         html.push_str("</ul>");
