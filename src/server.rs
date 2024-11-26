@@ -9,7 +9,7 @@ use axum::{
 use serde::Deserialize;
 use draftsmith_rest_api::client::{
     fetch_note, get_note_breadcrumbs, notes::get_note_rendered_html, update_note, NoteBreadcrumb,
-    UpdateNoteRequest, fetch_note_tree, attach_child_note, detach_child_note
+    UpdateNoteRequest, fetch_note_tree, attach_child_note, detach_child_note, AttachChildRequest
 };
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
@@ -255,7 +255,12 @@ async fn route_move_note_post(
     }
 
     // Then attach it to the new parent
-    match attach_child_note(&api_addr, note_id, form.new_parent_id).await {
+    let attach_request = AttachChildRequest {
+        parent_id: form.new_parent_id,
+        child_id: note_id,
+    };
+
+    match attach_child_note(&api_addr, attach_request).await {
         Ok(_) => {
             session
                 .set_flash(FlashMessage::success("Note moved successfully"))
