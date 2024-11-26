@@ -4,7 +4,7 @@
     {% else %}
         <li class="note-item" draggable="true" data-note-id="{{  node.id  }}">
     {% endif %}
-    <details {% if node.id in parent_ids or note.id == node.id %}open{% endif %}>
+    <details {% if node.id in parent_ids or note.id == node.id %}open {% set parent_ids = parent_ids + [node.id] %}{% else %} open{% endif %}>
       <summary {% if note.id == node.id %} class="font-semibold"  {% endif %}>
         <a href="/note/{{ node.id }}">{{ node.title }}</a>
       </summary>
