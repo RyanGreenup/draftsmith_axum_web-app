@@ -1,3 +1,5 @@
+use crate::flash::{FlashMessage, FlashMessageStore};
+use crate::static_files::build_static_routes;
 use axum::{
     extract::{Path, Query},
     response::{Html, Redirect},
@@ -5,14 +7,13 @@ use axum::{
     Form, Router,
 };
 use draftsmith_rest_api::client::{
-    fetch_note, notes::get_note_rendered_html, update_note, UpdateNoteRequest
+    fetch_note, get_note_breadcrumbs, notes::get_note_rendered_html, update_note, NoteBreadcrumb,
+    UpdateNoteRequest,
 };
-use crate::static_files::build_static_routes;
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
 use once_cell::sync::Lazy;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
-use crate::flash::{FlashMessage, FlashMessageStore};
 
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 
@@ -53,7 +54,6 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     env
 });
 
-
 // TODO None Path should be 1
 // TODO Better way than using a closure?
 async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -> Html<String> {
@@ -67,6 +67,15 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
         // TODO don't panic!
         panic!("Failed to fetch note. Error: {:#}", e);
     });
+
+    // Get the breadcrumbs
+    let breadcrumbs: Option<Vec<NoteBreadcrumb>> = match get_note_breadcrumbs(&api_addr, id).await {
+        Ok(b) => Some(b),
+        Err(e) => {
+            eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
+            None
+        }
+    };
 
     // Render the first note
     let rendered_note = get_note_rendered_html(&api_addr, id)
@@ -83,6 +92,7 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
     let rendered = match template.render(context!(
         rendered_note => rendered_note,
         note => note,
+        breadcrumbs => breadcrumbs,
         flash => flash,
     )) {
         Ok(result) => result,
@@ -117,7 +127,10 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
         Ok(template) => template,
         Err(e) => {
             session
-                .set_flash(FlashMessage::error(format!("Failed to load template: {}", e)))
+                .set_flash(FlashMessage::error(format!(
+                    "Failed to load template: {}",
+                    e
+                )))
                 .await
                 .unwrap();
 
@@ -134,7 +147,10 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
         Ok(result) => result,
         Err(err) => {
             session
-                .set_flash(FlashMessage::error(format!("Failed to render template: {}", err)))
+                .set_flash(FlashMessage::error(format!(
+                    "Failed to render template: {}",
+                    err
+                )))
                 .await
                 .unwrap();
 

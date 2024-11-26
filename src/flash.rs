@@ -1,10 +1,10 @@
 use axum::async_trait;
 use serde::{Deserialize, Serialize};
-use tower_sessions::{Session, session::Error as SessionError};
+use tower_sessions::{session::Error as SessionError, Session};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FlashMessage {
-    pub kind: String,    // "success", "error", "info", "warning"
+    pub kind: String, // "success", "error", "info", "warning"
     pub message: String,
 }
 
