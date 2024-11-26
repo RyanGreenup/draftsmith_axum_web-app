@@ -109,8 +109,10 @@ export default class extends Controller {
   handleNoteLeave(event) {
     const noteItem = event.target.closest('.note-item')
     const details = noteItem.querySelector('details')
+    const sidebar = this.element.closest('.sidebar')
     
-    if (details) {
+    // Only reset if we're leaving the sidebar entirely
+    if (details && !sidebar.contains(event.relatedTarget)) {
         // Restore original state if we have it stored
         const originalState = this.originalDetailsStates.get(details)
         if (originalState !== undefined) {
