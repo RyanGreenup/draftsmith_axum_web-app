@@ -1,6 +1,7 @@
 use clap::Parser;
 pub mod flash;
 pub mod server;
+pub mod html_builder;
 // TODO this should be a module of server
 mod static_files;
 
