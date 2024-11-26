@@ -1,4 +1,5 @@
 use crate::flash::{FlashMessage, FlashMessageStore};
+use crate::html_builder::build_note_tree_html;
 use crate::static_files::build_static_routes;
 use axum::{
     extract::{Path, Query},
@@ -6,17 +7,16 @@ use axum::{
     routing::get,
     Form, Router,
 };
-use serde::Deserialize;
 use draftsmith_rest_api::client::{
-    fetch_note, get_note_breadcrumbs, notes::get_note_rendered_html, update_note, NoteBreadcrumb,
-    UpdateNoteRequest, fetch_note_tree, attach_child_note, detach_child_note, AttachChildRequest
+    attach_child_note, detach_child_note, fetch_note, fetch_note_tree, get_note_breadcrumbs,
+    notes::get_note_rendered_html, update_note, AttachChildRequest, NoteBreadcrumb,
+    UpdateNoteRequest,
 };
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
 use once_cell::sync::Lazy;
+use serde::Deserialize;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
-use crate::html_builder::build_note_tree_html;
-
 
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 
@@ -79,10 +79,11 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
     });
     let tree = build_note_tree_html(
         tree,
-        id,
-        breadcrumbs.as_ref().map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect())
+        Some(id),
+        breadcrumbs
+            .as_ref()
+            .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
     );
-
 
     // Render the first note
     let rendered_note = get_note_rendered_html(&api_addr, id)
@@ -226,15 +227,38 @@ struct MoveNoteForm {
     new_parent_id: i32,
 }
 
-async fn route_move_note_get(
-    api_addr: String,
-    Path(note_id): Path<i32>,
-) -> Html<String> {
+async fn route_move_note_get(api_addr: String, Path(note_id): Path<i32>) -> Html<String> {
     let template = ENV.get_template("body/note/move.html").unwrap();
-    
-    let rendered = template.render(context!(
-        note_id => note_id,
-    )).unwrap_or_else(handle_template_error);
+
+    // Get the breadcrumbs
+    let breadcrumbs: Option<Vec<NoteBreadcrumb>> =
+        match get_note_breadcrumbs(&api_addr, note_id).await {
+            Ok(b) => Some(b),
+            Err(e) => {
+                eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
+                None
+            }
+        };
+
+    // Get the Tree
+    let tree = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
+        // TODO don't panic!
+        panic!("Failed to fetch note tree. Error: {:#}", e);
+    });
+    let tree = build_note_tree_html(
+        tree,
+        Some(note_id),
+        breadcrumbs
+            .as_ref()
+            .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
+    );
+
+    let rendered = template
+        .render(context!(
+            note_id => note_id,
+            tree => tree,
+        ))
+        .unwrap_or_else(handle_template_error);
 
     Html(rendered)
 }
@@ -245,19 +269,37 @@ async fn route_move_note_post(
     Path(note_id): Path<i32>,
     Form(form): Form<MoveNoteForm>,
 ) -> Redirect {
+    // Get the breadcrumbs
+    let breadcrumbs: Option<Vec<NoteBreadcrumb>> =
+        match get_note_breadcrumbs(&api_addr, note_id).await {
+            Ok(b) => Some(b),
+            Err(e) => {
+                eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
+                None
+            }
+        };
+
     // First detach the note from its current parent
-    if let Err(e) = detach_child_note(&api_addr, note_id).await {
-        session
-            .set_flash(FlashMessage::error(format!("Failed to detach note: {}", e)))
-            .await
-            .unwrap();
-        return Redirect::to(&format!("/note/{note_id}"));
+    if let Some(bcvec) = breadcrumbs {
+        // Don't count the last breadcrumb which is itself, so > 1
+        // No breadcrumbs, no parents, no need to detach
+        if bcvec.len() > 1 {
+            println!("Detaching note from parent");
+            println!("Breadcrumbs: {:#?}", bcvec);
+            if let Err(e) = detach_child_note(&api_addr, note_id).await {
+                session
+                    .set_flash(FlashMessage::error(format!("Failed to detach note: {}", e)))
+                    .await
+                    .unwrap();
+                return Redirect::to(&format!("/note/{note_id}"));
+            }
+        }
     }
 
     // Then attach it to the new parent
     let attach_request = AttachChildRequest {
-        parent_id: form.new_parent_id,
-        child_id: note_id,
+        parent_note_id: Some(form.new_parent_id),
+        child_note_id: note_id,
     };
 
     match attach_child_note(&api_addr, attach_request).await {
@@ -333,15 +375,11 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             "/note/:id/move",
             get({
                 let api_addr = api_addr.clone();
-                move |Path(path): Path<i32>| {
-                    route_move_note_get(api_addr.clone(), Path(path))
-                }
+                move |Path(path): Path<i32>| route_move_note_get(api_addr.clone(), Path(path))
             })
             .post({
                 let api_addr = api_addr.clone();
-                move |session: Session,
-                      Path(path): Path<i32>,
-                      Form(form): Form<MoveNoteForm>| {
+                move |session: Session, Path(path): Path<i32>, Form(form): Form<MoveNoteForm>| {
                     route_move_note_post(session, api_addr.clone(), Path(path), Form(form))
                 }
             }),

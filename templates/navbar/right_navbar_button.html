@@ -27,6 +27,7 @@
           {{ link_item("/recent", "Recent") }}
           {% if note %}
           {{ link_item("/note/" ~ note.id ~ "/move", "Move") }}
+          {{ link_item("/manage_tags/" ~ note.id, "Manage Tags") }}
           <li>
             <form
               action="/note/{note.id}/delete"
@@ -44,12 +45,6 @@
             </form>
           </li>
           {% endif %}
-          <li>
-            <a
-              href="/manage_tags/{{note.id}}"
-              class="btn btn-ghost btn-sm justify-start"
-              >Manage Tags</a
-            >
           </li>
           <li>
             <details class="dropdown dropdown-end">
