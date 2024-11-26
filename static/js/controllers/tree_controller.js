@@ -13,6 +13,10 @@ export default class extends Controller {
       item.addEventListener('dragend', this.handleDragEnd.bind(this))
       item.addEventListener('dragleave', this.handleDragLeave.bind(this))
     })
+
+    // Add drop zone for detaching notes
+    document.body.addEventListener('dragover', this.handleBodyDragOver.bind(this))
+    document.body.addEventListener('drop', this.handleBodyDrop.bind(this))
   }
 
   handleDragStart(event) {
@@ -48,6 +52,7 @@ export default class extends Controller {
     this.element.querySelectorAll('.note-item').forEach(item => {
       item.classList.remove('dragging', 'drag-over')
     })
+    document.body.classList.remove('detach-drop-zone')
   }
 
   async handleDrop(event) {
@@ -91,6 +96,49 @@ export default class extends Controller {
         console.error('Error moving note:', error);
         // Force a page reload to show any error flash messages
         window.location.href = `/note/${draggedNoteId}`;
+    }
+  }
+
+  handleBodyDragOver(event) {
+    // Only allow dropping outside the tree
+    if (!event.target.closest('.note-tree')) {
+        event.preventDefault()
+        document.body.classList.add('detach-drop-zone')
+    }
+  }
+
+  async handleBodyDrop(event) {
+    // Only handle drops outside the tree
+    if (!event.target.closest('.note-tree')) {
+        event.preventDefault()
+        document.body.classList.remove('detach-drop-zone')
+        
+        const draggedNoteId = event.dataTransfer.getData('text/plain')
+        if (!draggedNoteId) return
+
+        try {
+            // Make the API call to detach the note
+            const response = await fetch(`/note/${draggedNoteId}/move`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'new_parent_id': '0'  // Use 0 or null to indicate detachment
+                }).toString()
+            })
+
+            if (!response.ok) {
+                throw new Error(`Detach failed: ${response.statusText}`)
+            }
+
+            // Redirect to the note's page to show the result
+            window.location.href = `/note/${draggedNoteId}`
+            
+        } catch (error) {
+            console.error('Error detaching note:', error)
+            window.location.href = `/note/${draggedNoteId}`
+        }
     }
   }
 }
