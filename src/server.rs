@@ -56,7 +56,7 @@ impl BodyHandler {
         // Get tree
         let tree_pages = fetch_note_tree(&api_addr).await?;
         let tree_html =
-            build_note_tree_html(tree_pages.clone(), None, Vec::new(), MAX_ITEMS_PER_PAGE);
+            build_note_tree_html(tree_pages.clone(), id, Vec::new(), MAX_ITEMS_PER_PAGE);
 
         // Get any Flash
         let flash = session.take_flash().await.unwrap_or(None);
