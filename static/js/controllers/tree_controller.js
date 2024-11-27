@@ -220,8 +220,8 @@ export default class extends Controller {
   }
 
   handleKeyNavigation(event) {
-    // Only handle Alt + arrow key combinations
-    if (!event.altKey) return;
+    // Only handle Ctrl + arrow key combinations
+    if (!event.ctrlKey) return;
 
     switch (event.key) {
         case 'ArrowLeft':
