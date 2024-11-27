@@ -166,7 +166,7 @@ async fn route_note(
             return Html(String::from("<h1>Error fetching note data</h1>"));
         }
     };
-    let breadcrumbs = note_handler.breadcrumbs;
+    let breadcrumbs = note_handler.breadcrumbs.clone();
     let tree_pages = note_handler.tree.clone();
     let note = note_handler.note.clone();
 
@@ -226,7 +226,7 @@ async fn route_edit(
             return Html(String::from("<h1>Error fetching note data</h1>"));
         }
     };
-    let breadcrumbs = note_handler.breadcrumbs;
+    let breadcrumbs = note_handler.breadcrumbs.clone();
     let tree_pages = note_handler.tree;
     let note = note_handler.note;
 
