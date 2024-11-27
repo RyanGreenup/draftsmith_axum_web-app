@@ -129,6 +129,10 @@ impl NoteHandler {
         })
     }
 
+    // TODO use this to set note_content in the template
+    // rather than note.content
+    // that way the code stays simple but it's not fetched for reading
+    #[allow(dead_code)]
     async fn get_note_with_content(&self, id: i32) -> Result<NoteWithoutFts, NoteError> {
         fetch_note(&self.api_addr, id, false).await
     }
