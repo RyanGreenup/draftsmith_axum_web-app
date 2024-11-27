@@ -17,7 +17,7 @@ impl NoteHandler {
         &self,
         id: i32,
         include_rendered: bool,
-    ) -> Result<(NoteWithoutFts, Option<Vec<NoteBreadcrumb>>, Vec<String>), Box<dyn std::error::Error>> {
+    ) -> Result<(NoteWithoutFts, Option<Vec<NoteBreadcrumb>>, Vec<String>), Box<dyn std::error::Error + Send + Sync>> {
         // Get the note
         let note = fetch_note(&self.api_addr, id, include_rendered).await?;
 
@@ -44,7 +44,7 @@ impl NoteHandler {
         Ok((note, breadcrumbs, tree_html))
     }
 
-    async fn get_rendered_html(&self, id: i32) -> Result<String, Box<dyn std::error::Error>> {
+    async fn get_rendered_html(&self, id: i32) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         Ok(get_note_rendered_html(&self.api_addr, id).await?)
     }
 }
