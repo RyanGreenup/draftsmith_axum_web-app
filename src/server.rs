@@ -253,7 +253,7 @@ async fn route_edit(
             return Html(format!(
                 r#"<script>window.location.href = "/note/{}";</script>"#,
                 id
-            ));
+            )).into_response();
         }
     };
 
