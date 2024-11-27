@@ -158,13 +158,15 @@ fn render_single_node(
     )
     .unwrap();
 
-    let is_parent = parent_ids.contains(&node.id);
-    let is_current = current_note_id == Some(node.id);
+    // Check if this node is either:
+    // 1. A parent of the current note
+    // 2. The current note itself
+    let should_be_open = parent_ids.contains(&node.id) || current_note_id == Some(node.id);
 
     write!(
         page.content,
         r#"<details{}"#,
-        if is_parent || is_current { " open" } else { "" }
+        if should_be_open { " open" } else { "" }
     )
     .unwrap();
 
