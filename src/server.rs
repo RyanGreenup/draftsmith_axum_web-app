@@ -486,12 +486,12 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         )
         .nest("/static", build_static_routes())
         .route("/search", get(search))
-        .route("/recent", {
+        .route("/recent", get({
             let api_addr = api_addr.clone();
-             || async move {
-                 recent(api_addr.clone()).await
+            move || async move {
+                recent(api_addr.clone()).await
             }
-        })
+        }))
         .route(
             "/note/:id/move",
             get({
