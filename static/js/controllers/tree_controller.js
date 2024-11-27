@@ -247,15 +247,16 @@ export default class extends Controller {
     // Get current page from URL or data attribute
     const urlParams = new URLSearchParams(window.location.search);
     const currentPage = parseInt(urlParams.get('page')) || 1;
-    
+
     // Get total pages by counting the number of tree page elements
     const treePages = document.querySelectorAll('.menu[data-controller="tree"]');
-    const totalPages = treePages.length;
+    // const totalPages = treePages.length; // This seems wrong, it's always 0
 
     // Calculate new page
     let newPage;
     if (direction === 'next') {
-        newPage = Math.min(currentPage + 1, totalPages);
+        // newPage = Math.min(currentPage + 1, totalPages);
+        newPage = currentPage + 1;
     } else {
         newPage = Math.max(currentPage - 1, 1);
     }
