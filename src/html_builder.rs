@@ -83,7 +83,6 @@ fn render_node_with_paging(
         current_page.item_count = 0;
 
         // Add ancestor nodes as context with proper nesting
-        let current_level = String::new();
         for (i, ancestor) in ancestry.iter().enumerate() {
             if i > 0 {
                 current_page.content.push_str("<ul>");
@@ -144,7 +143,7 @@ fn render_single_node(
     node: &NoteTreeNode,
     current_note_id: Option<i32>,
     parent_ids: &[i32],
-    levels_below_current: i32,
+    _levels_below_current: i32,
 ) {
     let class_str = if Some(node.id) == current_note_id {
         r#"note-item bg-blue-100 text-blue-800 rounded-md"#
@@ -159,7 +158,7 @@ fn render_single_node(
     )
     .unwrap();
 
-    let is_parent = parent_ids.contains(&node.id);
+    let _is_parent = parent_ids.contains(&node.id);
     let is_current = current_note_id == Some(node.id);
 
     write!(
@@ -189,7 +188,7 @@ fn render_single_node(
 fn render_context_node(
     page: &mut TreePage,
     node: &NoteTreeNode,
-    current_note_id: Option<i32>,
+    _current_note_id: Option<i32>,
     parent_ids: &[i32],
 ) {
     let class_str = "note-item opacity-50";
