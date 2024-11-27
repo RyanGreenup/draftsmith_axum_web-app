@@ -1,113 +1,211 @@
 use draftsmith_rest_api::client::NoteTreeNode;
 use std::fmt::Write;
 
+pub struct TreePage {
+    content: String,
+    item_count: usize,
+}
+
 pub fn build_note_tree_html(
     tree: Vec<NoteTreeNode>,
     current_note_id: Option<i32>,
     parent_ids: Vec<i32>,
-) -> String {
-    let mut html = String::new();
+    max_items_per_page: usize,
+) -> Vec<String> {
+    let mut pages = Vec::new();
+    let mut current_page = TreePage {
+        content: String::new(),
+        item_count: 0,
+    };
+
+    if max_items_per_page == 0 {
+        return Vec::new();
+    }
+
+    // Start first page
     write!(
-        html,
+        current_page.content,
         r#"<ul class="menu bg-base-200 rounded-box w-full md:w-56" data-controller="tree">"#
     )
     .unwrap();
 
+    // Track ancestry for context when splitting pages
+    let mut ancestry = Vec::new();
+
     for node in &tree {
-        render_node(&mut html, node, current_note_id, &parent_ids, -1, 4);
+        render_node_with_paging(
+            node,
+            current_note_id,
+            &parent_ids,
+            -1,
+            4,
+            &mut current_page,
+            &mut pages,
+            max_items_per_page,
+            &mut ancestry,
+        );
     }
 
-    html.push_str("</ul>");
-    html
+    // Close final page if it has content
+    if current_page.item_count > 0 {
+        current_page.content.push_str("</ul>");
+        pages.push(current_page.content);
+    }
+
+    pages
 }
 
-fn render_node(
-    html: &mut String,
+fn render_node_with_paging(
     node: &NoteTreeNode,
     current_note_id: Option<i32>,
     parent_ids: &[i32],
     levels_below_current: i32,
     max_levels_below: i32,
+    current_page: &mut TreePage,
+    pages: &mut Vec<String>,
+    max_items: usize,
+    ancestry: &mut Vec<NoteTreeNode>,
 ) {
-    // Start list item with conditional classes
-    if Some(node.id) == current_note_id {
-        write!(html, r#"<li class="note-item bg-blue-100 text-blue-800 rounded-md" draggable="true" data-note-id="{}">"#,
-            node.id
-        ).unwrap();
-    } else {
+    // Check if we need to start a new page
+    if current_page.item_count >= max_items {
+        // Close all open tags properly
+        current_page.content.push_str("</details></li></ul>");
+        pages.push(std::mem::take(&mut current_page.content));
+
+        // Start new page
         write!(
-            html,
-            r#"<li class="note-item" draggable="true" data-note-id="{}">"#,
-            node.id
+            current_page.content,
+            r#"<ul class="menu bg-base-200 rounded-box w-full md:w-56" data-controller="tree">"#
         )
         .unwrap();
-    }
 
-    // Details tag
-    let is_parent = parent_ids.contains(&node.id);
-    let is_current = current_note_id == Some(node.id);
-    let is_within_unfold_levels =
-        levels_below_current >= 0 && levels_below_current < max_levels_below;
+        // Reset count and add ancestry context
+        current_page.item_count = 0;
 
-    write!(
-        html,
-        r#"<details{}"#,
-        if is_parent || is_current || is_within_unfold_levels {
-            " open"
-        } else {
-            ""
+        // Add ancestor nodes as context with proper nesting
+        let current_level = String::new();
+        for (i, ancestor) in ancestry.iter().enumerate() {
+            if i > 0 {
+                current_page.content.push_str("<ul>");
+            }
+            render_context_node(current_page, ancestor, current_note_id, parent_ids);
         }
-    )
-    .unwrap();
-
-    // Summary with conditional styling
-    let title = node
-        .title.as_deref()
-        .unwrap_or("Untitled");
-    if Some(node.id) == current_note_id {
-        write!(
-            html,
-            r#"><summary class="font-semibold"><a href="/note/{}">{}</a></summary>"#,
-            node.id,
-            html_escape::encode_text(title)
-        )
-        .unwrap();
-    } else {
-        write!(
-            html,
-            r#"><summary><a href="/note/{}">{}</a></summary>"#,
-            node.id,
-            html_escape::encode_text(title)
-        )
-        .unwrap();
     }
 
-    // Render children if any exist
+    // Push current node to ancestry before processing children
+    ancestry.push(node.clone());
+
+    // Render current node
+    render_single_node(
+        current_page,
+        node,
+        current_note_id,
+        parent_ids,
+        levels_below_current,
+    );
+    current_page.item_count += 1;
+
+    // Process children if any
     if !node.children.is_empty() {
-        html.push_str("<ul>");
+        current_page.content.push_str("<ul>");
         for child in &node.children {
-            let next_level = if is_current {
-                // Start counting levels below current note
+            let next_level = if current_note_id == Some(node.id) {
                 0
             } else if levels_below_current >= 0 {
-                // Continue counting levels below current note
                 levels_below_current + 1
             } else {
-                // Not in the current note's subtree
                 -1
             };
 
-            render_node(
-                html,
+            render_node_with_paging(
                 child,
                 current_note_id,
                 parent_ids,
                 next_level,
                 max_levels_below,
+                current_page,
+                pages,
+                max_items,
+                ancestry,
             );
         }
-        html.push_str("</ul>");
+        current_page.content.push_str("</ul>");
     }
 
-    html.push_str("</details></li>");
+    // Close the current node's tags
+    current_page.content.push_str("</details></li>");
+
+    // Remove current node from ancestry after processing
+    ancestry.pop();
+}
+
+fn render_single_node(
+    page: &mut TreePage,
+    node: &NoteTreeNode,
+    current_note_id: Option<i32>,
+    parent_ids: &[i32],
+    levels_below_current: i32,
+) {
+    let class_str = if Some(node.id) == current_note_id {
+        r#"note-item bg-blue-100 text-blue-800 rounded-md"#
+    } else {
+        "note-item"
+    };
+
+    write!(
+        page.content,
+        r#"<li class="{}" draggable="true" data-note-id="{}">"#,
+        class_str, node.id
+    )
+    .unwrap();
+
+    let is_parent = parent_ids.contains(&node.id);
+    let is_current = current_note_id == Some(node.id);
+
+    write!(
+        page.content,
+        r#"<details{}"#,
+        if is_parent || is_current { " open" } else { "" }
+    )
+    .unwrap();
+
+    let title = node.title.as_deref().unwrap_or("Untitled");
+    let summary_class = if Some(node.id) == current_note_id {
+        "font-semibold"
+    } else {
+        ""
+    };
+
+    write!(
+        page.content,
+        r#"><summary class="{}"><a href="/note/{}">{}</a></summary>"#,
+        summary_class,
+        node.id,
+        html_escape::encode_text(title)
+    )
+    .unwrap();
+}
+
+fn render_context_node(
+    page: &mut TreePage,
+    node: &NoteTreeNode,
+    current_note_id: Option<i32>,
+    parent_ids: &[i32],
+) {
+    let class_str = "note-item opacity-50";
+    write!(
+        page.content,
+        r#"<li class="{}" draggable="true" data-note-id="{}">"#,
+        class_str, node.id
+    )
+    .unwrap();
+
+    let is_parent = parent_ids.contains(&node.id);
+    write!(
+        page.content,
+        r#"<details open><summary><a href="/note/{}">{}</a></summary>"#,
+        node.id,
+        html_escape::encode_text(node.title.as_deref().unwrap_or("Untitled"))
+    )
+    .unwrap();
 }

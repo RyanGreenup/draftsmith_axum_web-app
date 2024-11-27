@@ -1,0 +1,17 @@
+{% if pages and pages|length > 1 %}
+<div class="join mt-4">
+    {% if current_page > 1 %}
+    <a href="?page={{ current_page - 1 }}" class="join-item btn">«</a>
+    {% else %}
+    <button class="join-item btn" disabled>«</button>
+    {% endif %}
+
+    <button class="join-item btn">Page {{ current_page }}</button>
+
+    {% if current_page < pages|length %}
+    <a href="?page={{ current_page + 1 }}" class="join-item btn">»</a>
+    {% else %}
+    <button class="join-item btn" disabled>»</button>
+    {% endif %}
+</div>
+{% endif %}
