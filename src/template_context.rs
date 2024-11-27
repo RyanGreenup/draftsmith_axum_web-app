@@ -1,5 +1,6 @@
 use crate::flash::FlashMessageStore;
 use crate::html_builder::build_note_tree_html;
+use crate::MAX_ITEMS_PER_PAGE;
 use axum::extract::Query;
 use draftsmith_rest_api::client::notes::NoteWithoutFts;
 use draftsmith_rest_api::client::{
@@ -9,8 +10,6 @@ use draftsmith_rest_api::client::{
 use minijinja::context;
 use serde::Deserialize;
 use tower_sessions::Session;
-
-const MAX_ITEMS_PER_PAGE: usize = 50;
 
 #[derive(Deserialize)]
 pub struct PaginationParams {

@@ -6,6 +6,8 @@ pub mod server;
 mod static_files;
 mod template_context;
 
+pub const MAX_ITEMS_PER_PAGE: usize = 50;
+
 /// Simple program to greet a person or serve an API
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
