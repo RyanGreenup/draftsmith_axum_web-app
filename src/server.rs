@@ -43,9 +43,7 @@ const MAX_ITEMS_PER_PAGE: usize = 50;
 
 #[derive(Clone)]
 struct BodyHandler {
-    api_addr: String,
     tree: Vec<String>,
-    breadcrumbs: Vec<NoteBreadcrumb>,
 }
 
 impl BodyHandler {
@@ -60,9 +58,7 @@ impl BodyHandler {
         );
 
         Ok(Self {
-            api_addr,
             tree: tree_html,
-            breadcrumbs: Vec::new(),
         })
     }
 }
