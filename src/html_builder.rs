@@ -67,8 +67,8 @@ fn render_node_with_paging(
 ) {
     // Check if we need to start a new page
     if current_page.item_count >= max_items {
-        // Finish current page
-        current_page.content.push_str("</ul>");
+        // Close all open tags properly
+        current_page.content.push_str("</details></li></ul>");
         pages.push(std::mem::take(&mut current_page.content));
         
         // Start new page
@@ -80,8 +80,12 @@ fn render_node_with_paging(
         // Reset count and add ancestry context
         current_page.item_count = 0;
         
-        // Add ancestor nodes as context
-        for ancestor in ancestry.iter() {
+        // Add ancestor nodes as context with proper nesting
+        let mut current_level = String::new();
+        for (i, ancestor) in ancestry.iter().enumerate() {
+            if i > 0 {
+                current_page.content.push_str("<ul>");
+            }
             render_context_node(current_page, ancestor, current_note_id, parent_ids);
         }
     }
@@ -119,6 +123,9 @@ fn render_node_with_paging(
         }
         current_page.content.push_str("</ul>");
     }
+
+    // Close the current node's tags
+    current_page.content.push_str("</details></li>");
 
     // Remove current node from ancestry after processing
     ancestry.pop();
@@ -158,7 +165,7 @@ fn render_single_node(
     
     write!(
         page.content,
-        r#"><summary class="{}"><a href="/note/{}">{}</a></summary></details></li>"#,
+        r#"><summary class="{}"><a href="/note/{}">{}</a></summary>"#,
         summary_class,
         node.id,
         html_escape::encode_text(title)
@@ -171,15 +178,18 @@ fn render_context_node(
     current_note_id: Option<i32>,
     parent_ids: &[i32],
 ) {
+    let class_str = "note-item opacity-50";
     write!(
         page.content,
-        r#"<li class="note-item opacity-50" draggable="true" data-note-id="{}">"#,
+        r#"<li class="{}" draggable="true" data-note-id="{}">"#,
+        class_str,
         node.id
     ).unwrap();
 
+    let is_parent = parent_ids.contains(&node.id);
     write!(
         page.content,
-        r#"<details open><summary><a href="/note/{}">{}</a></summary></details></li>"#,
+        r#"<details open><summary><a href="/note/{}">{}</a></summary>"#,
         node.id,
         html_escape::encode_text(node.title.as_deref().unwrap_or("Untitled"))
     ).unwrap();
