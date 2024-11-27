@@ -1,17 +1,17 @@
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::html_builder::build_note_tree_html;
 use crate::static_files::build_static_routes;
-use draftsmith_rest_api::client::notes::NoteWithoutFts;
 use axum::{
     extract::{Path, Query},
-    response::{Html, Redirect, IntoResponse, Response},
+    response::{Html, IntoResponse, Redirect, Response},
     routing::{get, post},
     Form, Router,
 };
+use draftsmith_rest_api::client::notes::NoteWithoutFts;
 use draftsmith_rest_api::client::{
     attach_child_note, detach_child_note, fetch_note, fetch_note_tree, get_note_breadcrumbs,
-    notes::{get_note_rendered_html, fetch_notes, NoteError}, update_note, AttachChildRequest, NoteBreadcrumb,
-    UpdateNoteRequest,
+    notes::{fetch_notes, get_note_rendered_html, NoteError},
+    update_note, AttachChildRequest, NoteBreadcrumb, UpdateNoteRequest,
 };
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};
@@ -43,22 +43,43 @@ const MAX_ITEMS_PER_PAGE: usize = 50;
 
 #[derive(Clone)]
 struct BodyHandler {
-    tree: Vec<String>,
+    ctx: minijinja::Value,
 }
 
 impl BodyHandler {
-    async fn new(api_addr: String) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+    async fn new(
+        session: Session,
+        Query(params): Query<PaginationParams>,
+        api_addr: String,
+        id: Option<i32>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Get tree
-        let tree = fetch_note_tree(&api_addr).await?;
-        let tree_html = build_note_tree_html(
-            tree.clone(),
-            None,
-            Vec::new(),
-            MAX_ITEMS_PER_PAGE,
-        );
+        let tree_pages = fetch_note_tree(&api_addr).await?;
+        let tree_html =
+            build_note_tree_html(tree_pages.clone(), None, Vec::new(), MAX_ITEMS_PER_PAGE);
+
+        // Get any Flash
+        let flash = session.take_flash().await.unwrap_or(None);
+
+        // Get sidebar page number from query params if present, otherwise find the page containing the note
+        let current_page = params
+            .page
+            .unwrap_or_else(|| find_page_for_note(&tree_html, id));
+
+        // Store current page in session
+        // TODO don't panic
+        session
+            .insert("current_page", current_page)
+            .await
+            .expect("Unable to store current page");
 
         Ok(Self {
-            tree: tree_html,
+            ctx: context!(
+            tree => tree_html,
+            pages => tree_pages,
+            flash => flash,
+            current_page => current_page,
+                ),
         })
     }
 }
@@ -66,15 +87,19 @@ impl BodyHandler {
 #[derive(Clone)]
 struct NoteHandler {
     api_addr: String,
-    tree: Vec<String>,
-    breadcrumbs: Vec<NoteBreadcrumb>,
-    note: NoteWithoutFts,
+    ctx: minijinja::Value,
 }
 
 impl NoteHandler {
-    async fn new(api_addr: String, note_id: i32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+    async fn new(
+        session: Session,
+        Query(params): Query<PaginationParams>,
+        api_addr: String,
+        note_id: i32,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Get body handler data
-        let body_handler = BodyHandler::new(api_addr.clone()).await?;
+        let body_handler =
+            BodyHandler::new(session, Query(params), api_addr.clone(), Some(note_id)).await?;
 
         // Get breadcrumbs
         let breadcrumbs = match get_note_breadcrumbs(&api_addr, note_id).await {
@@ -86,13 +111,21 @@ impl NoteHandler {
         };
 
         // Get note
-        let note = fetch_note(&api_addr, note_id, true).await?;
+        // TODO currently this fetches the note content even if it's not required.
+        // This could be refactored to reduce requests, however, care needs to be taken to keep
+        // the code simple
+        // May try leptos next and circle back, managing web requests
+        // in an MPA is a bit more tricky than expected.
+        let note = fetch_note(&api_addr, note_id, false).await?;
+
+        let ctx = context! { ..body_handler.ctx, ..context! {
+            note => note,
+            breadcrumbs => breadcrumbs,
+        }};
 
         Ok(Self {
             api_addr,
-            tree: body_handler.tree,
-            breadcrumbs,
-            note,
+            ctx,
         })
     }
 
@@ -100,7 +133,10 @@ impl NoteHandler {
         fetch_note(&self.api_addr, id, false).await
     }
 
-    async fn get_rendered_html(&self, id: i32) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    async fn get_rendered_html(
+        &self,
+        id: i32,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         Ok(get_note_rendered_html(&self.api_addr, id).await?)
     }
 }
@@ -161,16 +197,13 @@ async fn route_note(
     Query(params): Query<PaginationParams>,
 ) -> Response {
     // Get note data
-    let note_handler = match NoteHandler::new(api_addr, id).await {
+    let note_handler = match NoteHandler::new(session.clone(), Query(params), api_addr, id).await {
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get note data: {:#}", e);
             return handle_not_found(session).await.into_response();
         }
     };
-    let breadcrumbs = note_handler.breadcrumbs.clone();
-    let tree_pages = note_handler.tree.clone();
-    let note = note_handler.note.clone();
 
     // Get rendered HTML
     let rendered_note = match note_handler.get_rendered_html(id).await {
@@ -181,32 +214,16 @@ async fn route_note(
         }
     };
 
-    // Get page from query params if present, otherwise find the page containing the note
-    let current_page = params
-        .page
-        .unwrap_or_else(|| find_page_for_note(&tree_pages, Some(id)));
-    let current_page = current_page.max(1);
-
-    // Store current page in session
-    session.insert("current_page", current_page).await.unwrap();
-
-    // Get and remove flash message
-    let flash = session.take_flash().await.unwrap_or(None);
-
     // Load and render template
     let template = ENV.get_template("body/note/read.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
     });
 
-    let rendered = match template.render(context!(
+    let ctx = context! { ..note_handler.ctx, ..context! {
         rendered_note => rendered_note,
-        note => note,
-        breadcrumbs => breadcrumbs,
-        flash => flash,
-        tree => tree_pages,
-        current_page => current_page,
-        pages => tree_pages
-    )) {
+    }};
+
+    let rendered = match template.render(ctx) {
         Ok(result) => result,
         Err(err) => handle_template_error(err),
     };
@@ -221,69 +238,21 @@ async fn route_edit(
     Query(params): Query<PaginationParams>,
 ) -> Response {
     // Get note data
-    let note_handler = match NoteHandler::new(api_addr, id).await {
+    let note_handler = match NoteHandler::new(session.clone(), Query(params), api_addr, id).await {
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get note data: {:#}", e);
             return handle_not_found(session).await.into_response();
         }
     };
-    let breadcrumbs = note_handler.breadcrumbs.clone();
-    let tree_pages = note_handler.tree.clone();
-    let note = match note_handler.get_note_with_content(id).await {
-        Ok(data) => data,
-        Err(e) => {
-            eprintln!("Failed to get note data: {:#}", e);
-            return Html(String::from("<h1>Error fetching note content</h1>")).into_response();
-        }
-    };
 
     // Load template
-    let template = match ENV.get_template("body/note/edit.html") {
-        Ok(template) => template,
-        Err(e) => {
-            session
-                .set_flash(FlashMessage::error(format!(
-                    "Failed to load template: {}",
-                    e
-                )))
-                .await
-                .unwrap();
+    let template = ENV
+        .get_template("body/note/edit.html")
+        .unwrap_or_else(|e| panic!("Failed to load template. Error: {:#}", e));
 
-            return Html(format!(
-                r#"<script>window.location.href = "/note/{}";</script>"#,
-                id
-            )).into_response();
-        }
-    };
-
-    // Get page from query params if present, otherwise find the page containing the note
-    let current_page = params
-        .page
-        .unwrap_or_else(|| find_page_for_note(&tree_pages, Some(id)));
-    let current_page = current_page.max(1);
-
-
-    let rendered = match template.render(context!(
-        note => note,
-        tree => tree_pages,
-        breadcrumbs => breadcrumbs,
-        current_page => current_page,
-        pages => tree_pages
-    )) {
-        Ok(result) => result,
-        Err(err) => {
-            session
-                .set_flash(FlashMessage::error(format!(
-                    "Failed to render template: {}",
-                    err
-                )))
-                .await
-                .unwrap();
-
-            handle_template_error(err)
-        }
-    };
+    // Render the template
+    let rendered = template.render(note_handler.ctx).unwrap_or_else(handle_template_error);
 
     Html(rendered).into_response()
 }
@@ -349,19 +318,18 @@ async fn search(Query(params): Query<std::collections::HashMap<String, String>>)
 // TODO implement recent
 async fn route_recent(
     session: Session,
+    Query(params): Query<PaginationParams>,
     api_addr: String,
-    Query(params): Query<PaginationParams>
 ) -> Html<String> {
     // Get the body data
-    let body_handler = match BodyHandler::new(api_addr.clone()).await {
+    let body_handler = match BodyHandler::new(session, Query(params), api_addr.clone(), None).await
+    {
         Ok(handler) => handler,
         Err(e) => {
             eprintln!("Failed to create body handler: {:#?}", e);
             return Html(String::from("<h1>Error getting page data</h1>"));
         }
     };
-
-    let tree_pages = body_handler.tree.clone();
 
     // Get Recent notes
     let metadata_only = true;
@@ -383,25 +351,12 @@ async fn route_recent(
         panic!("Failed to load template. Error: {:#}", e);
     });
 
+    // get the context vars
+    let ctx = context! { ..body_handler.ctx, ..context! {
+        recent_notes => recent_notes,
+    }};
 
-    // Get page from query params if present, otherwise find the page containing the note
-    let current_page = params
-        .page
-        .unwrap_or_else(|| find_page_for_note(&tree_pages, None));
-    let current_page = current_page.max(1);
-
-    // Get any flash messages
-    let flash = session.take_flash().await.unwrap_or(None);
-
-    let rendered = template
-        .render(context!(
-            flash => flash,
-            recent_notes => recent_notes,
-            current_page => current_page,
-            tree => tree_pages,
-            pages => tree_pages,
-        ))
-        .unwrap_or_else(handle_template_error);
+    let rendered = template.render(ctx).unwrap_or_else(handle_template_error);
 
     Html(rendered)
 }
@@ -586,7 +541,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/recent", get({
             let api_addr = api_addr.clone();
             move |session: Session, query: Query<PaginationParams>| async move {
-                route_recent(session, api_addr.clone(), query).await
+                route_recent(session, query, api_addr.clone()).await
             }
         }))
         .route(
