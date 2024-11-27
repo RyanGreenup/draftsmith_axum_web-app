@@ -158,7 +158,7 @@ fn render_single_node(
     )
     .unwrap();
 
-    let _is_parent = parent_ids.contains(&node.id);
+    let is_parent = parent_ids.contains(&node.id);
     let is_current = current_note_id == Some(node.id);
 
     write!(
@@ -199,7 +199,7 @@ fn render_context_node(
     )
     .unwrap();
 
-    let is_parent = parent_ids.contains(&node.id);
+    let _is_parent = parent_ids.contains(&node.id);
     write!(
         page.content,
         r#"<details open><summary><a href="/note/{}">{}</a></summary>"#,
