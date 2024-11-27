@@ -167,7 +167,7 @@ async fn route_note(
         }
     };
     let breadcrumbs = note_handler.breadcrumbs;
-    let tree_pages = note_handler.tree;
+    let tree_pages = note_handler.tree.clone();
     let note = note_handler.note.clone();
 
     // Get rendered HTML
@@ -340,7 +340,7 @@ async fn route_recent(
         }
     };
     
-    let tree_pages = body_handler.tree;
+    let tree_pages = body_handler.tree.clone();
     
     // Get Recent notes
     let metadata_only = true;
