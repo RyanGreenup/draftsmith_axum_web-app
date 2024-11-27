@@ -28,6 +28,26 @@ fn find_page_for_note(tree_pages: &Vec<String>, note_id: Option<i32>) -> i32 {
     1 // Default to first page if note not found
 }
 
+/*
+- Body
+    - Vars
+        - api_addr: Str
+        - tree: Vec<String>
+        - breadcrumbs: Vec<NoteBreadcrumb>
+    - Templates
+        - body/base.html
+        - body/pagination.html
+        - body/recent.html
+    - Sub
+        - Notes
+            - Vars
+                - note: NoteWithoutFts
+            - Templates
+                - body/note/read.html
+                - body/note/edit.html
+                - body/note/move.html
+*/
+
 #[derive(Clone)]
 pub struct BodyTemplateContext {
     pub ctx: minijinja::Value,

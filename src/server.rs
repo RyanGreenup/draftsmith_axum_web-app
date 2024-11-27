@@ -20,26 +20,6 @@ use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
 const MAX_ITEMS_PER_PAGE: usize = 50;
 
-/*
-- Body
-    - Vars
-        - api_addr: Str
-        - tree: Vec<String>
-        - breadcrumbs: Vec<NoteBreadcrumb>
-    - Templates
-        - body/base.html
-        - body/pagination.html
-        - body/recent.html
-    - Sub
-        - Notes
-            - Vars
-                - note: NoteWithoutFts
-            - Templates
-                - body/note/read.html
-                - body/note/edit.html
-                - body/note/move.html
-*/
-
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 
 static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
