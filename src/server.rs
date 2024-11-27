@@ -21,23 +21,35 @@ use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
 const MAX_ITEMS_PER_PAGE: usize = 50;
 
+/*
+- Body
+    - Vars
+        - api_addr: Str
+        - tree: Vec<String>
+        - breadcrumbs: Vec<NoteBreadcrumb>
+    - Templates
+        - body/base.html
+        - body/pagination.html
+        - body/recent.html
+    - Sub
+        - Notes
+            - Vars
+                - note: NoteWithoutFts
+            - Templates
+                - body/note/read.html
+                - body/note/edit.html
+                - body/note/move.html
+*/
+
 #[derive(Clone)]
-struct NoteHandler {
+struct BodyHandler {
     api_addr: String,
+    tree: Vec<String>,
+    breadcrumbs: Vec<NoteBreadcrumb>,
 }
 
-impl NoteHandler {
+impl BodyHandler {
     fn new(api_addr: String) -> Self {
-        Self { api_addr }
-    }
-
-    async fn get_note_data(
-        &self,
-        id: i32,
-        include_rendered: bool,
-    ) -> Result<(NoteWithoutFts, Option<Vec<NoteBreadcrumb>>, Vec<String>), Box<dyn std::error::Error + Send + Sync>> {
-        // Get the note
-        let note = fetch_note(&self.api_addr, id, include_rendered).await?;
 
         // Get breadcrumbs
         let breadcrumbs = match get_note_breadcrumbs(&self.api_addr, id).await {
@@ -59,7 +71,32 @@ impl NoteHandler {
             MAX_ITEMS_PER_PAGE,
         );
 
-        Ok((note, breadcrumbs, tree_html))
+        Self {
+            api_addr,
+            tree,
+            breadcrumbs,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct NoteHandler {
+    api_addr: String,
+    tree: Vec<String>,
+    breadcrumbs: Vec<NoteBreadcrumb>,
+    note: NoteWithoutFts,
+}
+
+impl NoteHandler {
+    fn new(api_addr: String, note_id: &i32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let body_handler = BodyHandler::new(api_addr.clone());
+        let note = fetch_note(&self.api_addr, id, include_rendered).await?;
+        Self {
+            api_addr,
+            tree: body_handler.tree,
+            breadcrumbs: body_handler.breadcrumbs,
+            note: note,
+        }
     }
 
     async fn get_rendered_html(&self, id: i32) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
@@ -116,21 +153,24 @@ fn find_page_for_note(tree_pages: &Vec<String>, note_id: i32) -> i32 {
 
 async fn route_note(
     session: Session,
-    handler: &NoteHandler,
+    api_addr: String,
     Path(id): Path<i32>,
     Query(params): Query<PaginationParams>,
 ) -> Html<String> {
     // Get note data
-    let (note, breadcrumbs, tree_pages) = match handler.get_note_data(id, false).await {
+    let note_handler = match NoteHandler::new(api_addr, id) {
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get note data: {:#}", e);
             return Html(String::from("<h1>Error fetching note data</h1>"));
         }
-    };
+    }
+    let breadcrumbs = note_handler.breadcrumbs;
+    let tree_pages = note_handler.tree;
+    let note = note_handler.note;
 
     // Get rendered HTML
-    let rendered_note = match handler.get_rendered_html(id).await {
+    let rendered_note = match note_handler.get_rendered_html(id).await {
         Ok(html) => html,
         Err(e) => {
             eprintln!("Failed to get rendered note: {:#}", e);
@@ -173,24 +213,21 @@ async fn route_note(
 
 async fn route_edit(
     session: Session,
-    handler: &NoteHandler,
+    api_addr: String,
     Path(id): Path<i32>,
+    Query(params): Query<PaginationParams>,
 ) -> Html<String> {
     // Get note data
-    let (note, breadcrumbs, tree) = match handler.get_note_data(id, false).await {
+    let note_handler = match NoteHandler::new(api_addr, id) {
         Ok(data) => data,
         Err(e) => {
-            session
-                .set_flash(FlashMessage::error(format!("Failed to fetch note: {}", e)))
-                .await
-                .unwrap();
-
-            return Html(format!(
-                r#"<script>window.location.href = "/note/{}";</script>"#,
-                id
-            ));
+            eprintln!("Failed to get note data: {:#}", e);
+            return Html(String::from("<h1>Error fetching note data</h1>"));
         }
-    };
+    }
+    let breadcrumbs = note_handler.breadcrumbs;
+    let tree_pages = note_handler.tree;
+    let note = note_handler.note;
 
     // Load template
     let template = match ENV.get_template("body/note/edit.html") {
@@ -211,10 +248,18 @@ async fn route_edit(
         }
     };
 
+    // Get page from query params if present, otherwise find the page containing the note
+    let current_page = params
+        .page
+        .unwrap_or_else(|| find_page_for_note(&tree_pages, id));
+    let current_page = current_page.max(1);
+
+
     let rendered = match template.render(context!(
         note => note,
-        tree => tree,
+        tree => tree_pages,
         breadcrumbs => breadcrumbs,
+        current_page => current_page,
     )) {
         Ok(result) => result,
         Err(err) => {
@@ -281,11 +326,29 @@ async fn search(Query(params): Query<std::collections::HashMap<String, String>>)
 }
 
 // TODO implement recent
-async fn route_recent(handler: &NoteHandler) -> Html<String> {
-    let template = ENV.get_template("body/recent.html").unwrap();
+async fn route_recent(
+    api_addr: String,
+    Query(params): Query<PaginationParams>
+    ) -> Html<String> {
+    // Load and render template
+    let template = ENV.get_template("body/note/read.html").unwrap_or_else(|e| {
+        panic!("Failed to load template. Error: {:#}", e);
+    });
+
+    // Get the body data
+    let body_handler = BodyHandler::new(api_addr);
+    let tree_pages = body_handler.tree;
+    let breadcrumbs = body_handler.breadcrumbs;
+
+    // Get page from query params if present, otherwise find the page containing the note
+    let current_page = params
+        .page
+        .unwrap_or_else(|| find_page_for_note(&tree_pages, id));
+    let current_page = current_page.max(1);
+
+
+    // Get Recent notes
     let metadata_only = true;
-    
-    // Get notes
     let mut notes = match fetch_notes(&handler.api_addr, metadata_only).await {
         Ok(notes) => notes,
         Err(e) => {
@@ -293,22 +356,7 @@ async fn route_recent(handler: &NoteHandler) -> Html<String> {
             return Html(String::from("<h1>Error fetching notes</h1>"));
         }
     };
-    
-    // Get tree
-    let tree = match fetch_note_tree(&handler.api_addr).await {
-        Ok(tree) => tree,
-        Err(e) => {
-            eprintln!("Failed to fetch note tree: {:#?}", e);
-            return Html(String::from("<h1>Error fetching note tree</h1>"));
-        }
-    };
-    
-    let tree_html = build_note_tree_html(
-        tree,
-        None,
-        Vec::new(),
-        MAX_ITEMS_PER_PAGE,
-    );
+
 
     // Sort notes by updated_at
     notes.sort_by(|a, b| a.modified_at.cmp(&b.modified_at));
@@ -319,7 +367,7 @@ async fn route_recent(handler: &NoteHandler) -> Html<String> {
     let rendered = template
         .render(context!(
             recent_notes => recent_notes,
-            tree => tree_html,
+            tree => tree_pages,
         ))
         .unwrap_or_else(handle_template_error);
 
@@ -457,7 +505,6 @@ async fn route_move_note_post(
 pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str, port: &str) {
     let api_addr = format!("{api_scheme}://{api_host}:{api_port}");
     let addr = format!("{}:{}", host, port);
-    let handler = NoteHandler::new(api_addr.clone());
 
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
@@ -472,27 +519,24 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route(
             "/note/:id",
             get({
-                let handler = handler.clone();
                 move |session: Session, path: Path<i32>, query: Query<PaginationParams>| async move {
-                    route_note(session, &handler, path, query).await
+                    route_note(session, api_addr.clone(), path, query).await
                 }
             }),
         )
         .route(
             "/",
             get({
-                let handler = handler.clone();
                 move |session: Session, query: Query<PaginationParams>| async move {
-                    route_note(session, &handler, Path(1), query).await
+                    route_note(session, api_addr.clone(), Path(1), query).await
                 }
             }),
         )
         .route(
             "/edit/:id",
             get({
-                let handler = handler.clone();
-                move |session: Session, path: Path<i32>| async move {
-                    route_edit(session, &handler, path).await
+                move |session: Session, path: Path<i32>, query: Query<PaginationParams>| async move {
+                    route_edit(session, api_addr.clone(), path, query).await
                 }
             })
             .post({
@@ -507,21 +551,18 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .nest("/static", build_static_routes())
         .route("/search", get(search))
         .route("/recent", get({
-            let handler = handler.clone();
-            move || async move {
-                route_recent(&handler).await
+            move |query: Query<PaginationParams>| async move {
+                route_recent(api_addr.clone(), query).await
             }
         }))
         .route(
             "/note/:id/move",
             get({
-                let api_addr = api_addr.clone();
                 move |Path(path): Path<i32>| async move {
                     route_move_note_get(api_addr.clone(), Path(path)).await
                 }
             })
             .post({
-                let api_addr = api_addr.clone();
                 move |session: Session, Path(path): Path<i32>, Form(form): Form<MoveNoteForm>| async move {
                     route_move_note_post(session, api_addr.clone(), Path(path), Form(form)).await
                 }
@@ -530,7 +571,6 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route(
             "/note/:id/detach",
             post({
-                let api_addr = api_addr.clone();
                 move |session: Session, Path(path): Path<i32>| async move {
                     route_detach_note_post(session, api_addr.clone(), Path(path)).await
                 }
