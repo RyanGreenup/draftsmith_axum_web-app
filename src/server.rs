@@ -93,13 +93,6 @@ async fn route_note(
         // TODO don't panic!
         panic!("Failed to fetch note tree. Error: {:#}", e);
     });
-    // Get page parameter from query string, default to 1
-    let current_page = session
-        .get::<i32>("current_page")
-        .await
-        .unwrap_or(Ok(1))
-        .unwrap_or(1);
-
     let tree = build_note_tree_html(
         tree,
         Some(id),
