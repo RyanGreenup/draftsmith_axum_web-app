@@ -269,6 +269,7 @@ async fn route_edit(
         tree => tree_pages,
         breadcrumbs => breadcrumbs,
         current_page => current_page,
+        pages => tree_pages
     )) {
         Ok(result) => result,
         Err(err) => {
