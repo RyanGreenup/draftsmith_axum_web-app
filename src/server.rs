@@ -160,6 +160,7 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
         breadcrumbs
             .as_ref()
             .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
+        20, // max items per page
     );
 
     // Load the template
