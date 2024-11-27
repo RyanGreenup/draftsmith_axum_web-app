@@ -18,7 +18,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
-const MAX_ITEMS_PER_PAGE: usize = 3;
+const MAX_ITEMS_PER_PAGE: usize = 50;
 
 #[derive(Deserialize)]
 struct PaginationParams {
