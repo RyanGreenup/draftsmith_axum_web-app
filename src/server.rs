@@ -416,7 +416,7 @@ async fn route_move_note_post(
 pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str, port: &str) {
     let api_addr = format!("{api_scheme}://{api_host}:{api_port}");
     let addr = format!("{}:{}", host, port);
-    let handler = NoteHandler::new(api_addr);
+    let handler = NoteHandler::new(api_addr.clone());
 
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
