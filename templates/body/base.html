@@ -25,8 +25,10 @@
             <!-- Sidebar content here -->
             <div class="menu bg-base-200 text-base-content min-h-full w-80 p-4">
               <!-- Sidebar content here -->
-              {% include 'body/pagination.html' %}
-              {{ tree[current_page - 1] | safe }}
+              {% if tree is defined %}
+                  {% include 'body/pagination.html' %}
+                  {{ tree[current_page - 1] | safe }}
+              {% endif %}
             </div>
           </ul>
         </div>
