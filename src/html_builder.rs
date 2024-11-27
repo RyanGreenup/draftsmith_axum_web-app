@@ -15,16 +15,34 @@ pub fn set_breadcrumbs(breadcrumbs: Vec<i32>) {
     }
 }
 
-pub fn should_be_open(node_id: i32, current_note_id: i32) -> bool {
+fn is_parent_of_current(node_id: i32, node: &NoteTreeNode, current_note_id: i32) -> bool {
+    // Check direct children
+    if node.children.iter().any(|child| child.id == current_note_id) {
+        return true;
+    }
+    
+    // Recursively check children
+    for child in &node.children {
+        if is_parent_of_current(node_id, child, current_note_id) {
+            return true;
+        }
+    }
+    
+    false
+}
+
+pub fn should_be_open(node_id: i32, current_note_id: i32, node: &NoteTreeNode) -> bool {
     if let Ok(crumbs) = get_breadcrumbs().lock() {
-        crumbs.contains(&node_id) || current_note_id == node_id
+        crumbs.contains(&node_id) || 
+        current_note_id == node_id ||
+        is_parent_of_current(node_id, node, current_note_id)
     } else {
         false // fallback if lock fails
     }
 }
 
-fn build_details(node_id: i32, current_note_id: Option<i32>) -> String {
-    let open_status = if should_be_open(node_id, current_note_id.unwrap_or(-1)) {
+fn build_details(node_id: i32, current_note_id: Option<i32>, node: &NoteTreeNode) -> String {
+    let open_status = if should_be_open(node_id, current_note_id.unwrap_or(-1), node) {
         " open"
     } else {
         ""
@@ -189,7 +207,7 @@ fn render_single_node(
     )
     .unwrap();
 
-    let details = build_details(node.id, current_note_id);
+    let details = build_details(node.id, current_note_id, node);
 
     write!(
         page.content,
@@ -228,7 +246,7 @@ fn render_context_node(
     )
     .unwrap();
 
-    let details = build_details(node.id, current_note_id);
+    let details = build_details(node.id, current_note_id, node);
 
     write!(
         page.content,
