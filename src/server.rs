@@ -229,7 +229,7 @@ async fn route_edit(
         }
     };
     let breadcrumbs = note_handler.breadcrumbs.clone();
-    let tree_pages = note_handler.tree;
+    let tree_pages = note_handler.tree.clone();
     let note = match note_handler.get_note_with_content(id).await {
         Ok(data) => data,
         Err(e) => {
