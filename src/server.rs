@@ -18,6 +18,8 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
+const MAX_ITEMS_PER_PAGE: usize = 3;
+
 #[derive(Deserialize)]
 struct PaginationParams {
     page: Option<i32>,
@@ -63,7 +65,7 @@ async fn route_note(
     Query(params): Query<PaginationParams>,
 ) -> Html<String> {
     let id = path;
-    
+
     // Get page from query params, defaulting to 1 if not present
     let current_page = params.page.unwrap_or(1).max(1);
 
@@ -99,7 +101,7 @@ async fn route_note(
         breadcrumbs
             .as_ref()
             .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
-        20, // max items per page
+        MAX_ITEMS_PER_PAGE,
     );
 
     // Render the first note
@@ -170,7 +172,7 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
         breadcrumbs
             .as_ref()
             .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
-        20, // max items per page
+        MAX_ITEMS_PER_PAGE,
     );
 
     // Load the template
@@ -295,7 +297,7 @@ async fn route_move_note_get(api_addr: String, Path(note_id): Path<i32>) -> Html
         breadcrumbs
             .as_ref()
             .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
-        20, // max items per page
+        MAX_ITEMS_PER_PAGE, // max items per page
     );
 
     let rendered = template
