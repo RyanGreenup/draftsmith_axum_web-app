@@ -1,12 +1,12 @@
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::html_builder::build_note_tree_html;
-use crate::routes::notes::view::route_note;
+use crate::routes::notes::{edit::route_edit, view::route_note};
 use crate::static_files::build_static_routes;
-use crate::template_context::{BodyTemplateContext, NoteTemplateContext, PaginationParams};
+use crate::template_context::{BodyTemplateContext, PaginationParams};
 use crate::templates::ENV;
 use axum::{
     extract::{Path, Query},
-    response::{Html, IntoResponse, Redirect, Response},
+    response::{Html, Redirect},
     routing::{get, post},
     Form, Router,
 };
@@ -19,35 +19,6 @@ use serde::Deserialize;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
 const MAX_ITEMS_PER_PAGE: usize = 50;
-
-async fn route_edit(
-    session: Session,
-    api_addr: String,
-    Path(id): Path<i32>,
-    Query(params): Query<PaginationParams>,
-) -> Response {
-    // Get note data
-    let note_handler =
-        match NoteTemplateContext::new(session.clone(), Query(params), api_addr, id).await {
-            Ok(data) => data,
-            Err(e) => {
-                eprintln!("Failed to get note data: {:#}", e);
-                return handle_not_found(session).await.into_response();
-            }
-        };
-
-    // Load template
-    let template = ENV
-        .get_template("body/note/edit.html")
-        .unwrap_or_else(|e| panic!("Failed to load template. Error: {:#}", e));
-
-    // Render the template
-    let rendered = template
-        .render(note_handler.ctx)
-        .unwrap_or_else(handle_template_error);
-
-    Html(rendered).into_response()
-}
 
 async fn route_update_note(
     session: Session,
