@@ -18,6 +18,11 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
+#[derive(Deserialize)]
+struct PaginationParams {
+    page: Option<i32>,
+}
+
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 
 static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
@@ -51,8 +56,19 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 // TODO None Path should be 1
 // TODO Better way than using a closure?
 // TODO generalize these to inherit similar to the templates
-async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -> Html<String> {
+async fn route_note(
+    session: Session,
+    api_addr: String,
+    Path(path): Path<i32>,
+    Query(params): Query<PaginationParams>,
+) -> Html<String> {
     let id = path;
+    
+    // Get page from query params, defaulting to 1 if not present
+    let current_page = params.page.unwrap_or(1).max(1);
+
+    // Store current page in session
+    session.insert("current_page", current_page).await.unwrap();
 
     // Get and remove flash message in one operation
     let flash = session.take_flash().await.unwrap_or(None);
@@ -112,6 +128,7 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
         flash => flash,
         tree => tree,
         current_page => current_page,
+        pages => tree,  // Add this to enable pagination template
     )) {
         Ok(result) => result,
         Err(err) => handle_template_error(err),
@@ -401,8 +418,10 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             "/note/:id",
             get({
                 let api_addr = api_addr.clone();
-                move |session: Session, Path(path): Path<i32>| {
-                    route_note(session, api_addr.clone(), Path(path))
+                move |session: Session,
+                      Path(path): Path<i32>,
+                      query: Query<PaginationParams>| {
+                    route_note(session, api_addr.clone(), Path(path), query)
                 }
             }),
         )
@@ -410,7 +429,9 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             "/",
             get({
                 let api_addr = api_addr.clone();
-                move |session: Session| route_note(session, api_addr.clone(), Path(1))
+                move |session: Session, query: Query<PaginationParams>| {
+                    route_note(session, api_addr.clone(), Path(1), query)
+                }
             }),
         )
         .route(
