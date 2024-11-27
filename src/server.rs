@@ -1,7 +1,7 @@
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::html_builder::build_note_tree_html;
 use crate::static_files::build_static_routes;
-use draftsmith_rest_api::client::notes::NoteWithoutFts
+use draftsmith_rest_api::client::notes::NoteWithoutFts;
 
 #[derive(Clone)]
 struct NoteHandler {
@@ -105,7 +105,7 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 // TODO None Path should be 1
 // TODO Better way than using a closure?
 // TODO generalize these to inherit similar to the templates
-fn find_page_for_note(tree_pages: Vec<String>, note_id: i32) -> i32 {
+fn find_page_for_note(tree_pages: &Vec<String>, note_id: i32) -> i32 {
     for (index, page) in tree_pages.iter().enumerate() {
         if page.contains(&format!("data-note-id=\"{}\"", note_id)) {
             return (index + 1) as i32;
