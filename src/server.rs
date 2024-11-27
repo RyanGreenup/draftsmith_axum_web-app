@@ -10,7 +10,7 @@ use axum::{
 };
 use draftsmith_rest_api::client::{
     attach_child_note, detach_child_note, fetch_note, fetch_note_tree, get_note_breadcrumbs,
-    notes::{get_note_rendered_html, fetch_notes}, update_note, AttachChildRequest, NoteBreadcrumb,
+    notes::{get_note_rendered_html, fetch_notes, NoteError}, update_note, AttachChildRequest, NoteBreadcrumb,
     UpdateNoteRequest,
 };
 use include_dir::{include_dir, Dir};
@@ -75,7 +75,7 @@ impl NoteHandler {
     async fn new(api_addr: String, note_id: i32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Get body handler data
         let body_handler = BodyHandler::new(api_addr.clone()).await?;
-        
+
         // Get breadcrumbs
         let breadcrumbs = match get_note_breadcrumbs(&api_addr, note_id).await {
             Ok(b) => b,
@@ -94,6 +94,10 @@ impl NoteHandler {
             breadcrumbs,
             note,
         })
+    }
+
+    async fn get_note_with_content(&self, id: i32) -> Result<NoteWithoutFts, NoteError> {
+        fetch_note(&self.api_addr, id, false).await
     }
 
     async fn get_rendered_html(&self, id: i32) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
@@ -139,10 +143,12 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 // TODO None Path should be 1
 // TODO Better way than using a closure?
 // TODO generalize these to inherit similar to the templates
-fn find_page_for_note(tree_pages: &Vec<String>, note_id: i32) -> i32 {
-    for (index, page) in tree_pages.iter().enumerate() {
-        if page.contains(&format!("data-note-id=\"{}\"", note_id)) {
-            return (index + 1) as i32;
+fn find_page_for_note(tree_pages: &Vec<String>, note_id: Option<i32>) -> i32 {
+    if let Some(note_id) = note_id {
+        for (index, page) in tree_pages.iter().enumerate() {
+            if page.contains(&format!("data-note-id=\"{}\"", note_id)) {
+                return (index + 1) as i32;
+            }
         }
     }
     1 // Default to first page if note not found
@@ -178,7 +184,7 @@ async fn route_note(
     // Get page from query params if present, otherwise find the page containing the note
     let current_page = params
         .page
-        .unwrap_or_else(|| find_page_for_note(&tree_pages, id));
+        .unwrap_or_else(|| find_page_for_note(&tree_pages, Some(id)));
     let current_page = current_page.max(1);
 
     // Store current page in session
@@ -224,7 +230,13 @@ async fn route_edit(
     };
     let breadcrumbs = note_handler.breadcrumbs.clone();
     let tree_pages = note_handler.tree;
-    let note = note_handler.note;
+    let note = match note_handler.get_note_with_content(id).await {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("Failed to get note data: {:#}", e);
+            return Html(String::from("<h1>Error fetching note content</h1>"));
+        }
+    };
 
     // Load template
     let template = match ENV.get_template("body/note/edit.html") {
@@ -248,7 +260,7 @@ async fn route_edit(
     // Get page from query params if present, otherwise find the page containing the note
     let current_page = params
         .page
-        .unwrap_or_else(|| find_page_for_note(&tree_pages, id));
+        .unwrap_or_else(|| find_page_for_note(&tree_pages, Some(id)));
     let current_page = current_page.max(1);
 
 
@@ -335,9 +347,9 @@ async fn route_recent(
             return Html(String::from("<h1>Error getting page data</h1>"));
         }
     };
-    
+
     let tree_pages = body_handler.tree.clone();
-    
+
     // Get Recent notes
     let metadata_only = true;
     let mut notes = match fetch_notes(&api_addr, metadata_only).await {
@@ -358,9 +370,17 @@ async fn route_recent(
         panic!("Failed to load template. Error: {:#}", e);
     });
 
+
+    // Get page from query params if present, otherwise find the page containing the note
+    let current_page = params
+        .page
+        .unwrap_or_else(|| find_page_for_note(&tree_pages, None));
+    let current_page = current_page.max(1);
+
     let rendered = template
         .render(context!(
             recent_notes => recent_notes,
+            current_page => current_page,
             tree => tree_pages,
         ))
         .unwrap_or_else(handle_template_error);
