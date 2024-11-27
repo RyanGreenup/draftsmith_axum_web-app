@@ -83,7 +83,7 @@ fn render_node_with_paging(
         current_page.item_count = 0;
 
         // Add ancestor nodes as context with proper nesting
-        let mut current_level = String::new();
+        let current_level = String::new();
         for (i, ancestor) in ancestry.iter().enumerate() {
             if i > 0 {
                 current_page.content.push_str("<ul>");
