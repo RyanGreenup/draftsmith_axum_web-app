@@ -17,9 +17,6 @@ pub struct PaginationParams {
     pub page: Option<i32>,
 }
 
-// TODO None Path should be 1
-// TODO Better way than using a closure?
-// TODO generalize these to inherit similar to the templates
 fn find_page_for_note(tree_pages: &Vec<String>, note_id: Option<i32>) -> i32 {
     if let Some(note_id) = note_id {
         for (index, page) in tree_pages.iter().enumerate() {
