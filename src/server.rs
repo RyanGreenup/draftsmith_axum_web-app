@@ -1,6 +1,53 @@
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::html_builder::build_note_tree_html;
 use crate::static_files::build_static_routes;
+use draftsmith_rest_api::client::notes::Note;
+
+#[derive(Clone)]
+struct NoteHandler {
+    api_addr: String,
+}
+
+impl NoteHandler {
+    fn new(api_addr: String) -> Self {
+        Self { api_addr }
+    }
+
+    async fn get_note_data(
+        &self,
+        id: i32,
+        include_rendered: bool,
+    ) -> Result<(Note, Option<Vec<NoteBreadcrumb>>, Vec<String>), Box<dyn std::error::Error>> {
+        // Get the note
+        let note = fetch_note(&self.api_addr, id, include_rendered).await?;
+        
+        // Get breadcrumbs
+        let breadcrumbs = match get_note_breadcrumbs(&self.api_addr, id).await {
+            Ok(b) => Some(b),
+            Err(e) => {
+                eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
+                None
+            }
+        };
+
+        // Get tree
+        let tree = fetch_note_tree(&self.api_addr).await?;
+        let tree_html = build_note_tree_html(
+            tree,
+            Some(id),
+            breadcrumbs
+                .as_ref()
+                .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
+            MAX_ITEMS_PER_PAGE,
+        );
+
+        Ok((note, breadcrumbs, tree_html))
+    }
+
+    async fn get_rendered_html(&self, id: i32) -> Result<String, Box<dyn std::error::Error>> {
+        Ok(get_note_rendered_html(&self.api_addr, id).await?)
+    }
+}
 use axum::{
     extract::{Path, Query},
     response::{Html, Redirect},
@@ -69,46 +116,27 @@ fn find_page_for_note(tree_pages: &[String], note_id: i32) -> i32 {
 
 async fn route_note(
     session: Session,
-    api_addr: String,
-    Path(path): Path<i32>,
+    handler: &NoteHandler,
+    Path(id): Path<i32>,
     Query(params): Query<PaginationParams>,
 ) -> Html<String> {
-    let id = path;
-
-    // Get the Tree first so we can determine the correct page
-    let tree = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
-        panic!("Failed to fetch note tree. Error: {:#}", e);
-    });
-
-    // Get the breadcrumbs
-    let breadcrumbs: Option<Vec<NoteBreadcrumb>> = match get_note_breadcrumbs(&api_addr, id).await {
-        Ok(b) => Some(b),
+    // Get note data
+    let (note, breadcrumbs, tree_pages) = match handler.get_note_data(id, false).await {
+        Ok(data) => data,
         Err(e) => {
-            eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
-            None
+            eprintln!("Failed to get note data: {:#}", e);
+            return Html(String::from("<h1>Error fetching note data</h1>"));
         }
     };
 
-    let tree_pages = build_note_tree_html(
-        tree,
-        Some(id),
-        breadcrumbs
-            .as_ref()
-            .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
-        MAX_ITEMS_PER_PAGE,
-    );
-
-    // Render the first note
-    let rendered_note = get_note_rendered_html(&api_addr, id)
-        .await
-        .unwrap_or_else(|e| {
-            panic!("Failed to get rendered note. Error: {:#}", e);
-        });
-
-    // Load the template
-    let template = ENV.get_template("body/note/read.html").unwrap_or_else(|e| {
-        panic!("Failed to load template. Error: {:#}", e);
-    });
+    // Get rendered HTML
+    let rendered_note = match handler.get_rendered_html(id).await {
+        Ok(html) => html,
+        Err(e) => {
+            eprintln!("Failed to get rendered note: {:#}", e);
+            return Html(String::from("<h1>Error rendering note</h1>"));
+        }
+    };
 
     // Get page from query params if present, otherwise find the page containing the note
     let current_page = params
@@ -119,22 +147,10 @@ async fn route_note(
     // Store current page in session
     session.insert("current_page", current_page).await.unwrap();
 
-    // Get and remove flash message in one operation
+    // Get and remove flash message
     let flash = session.take_flash().await.unwrap_or(None);
 
-    // Get the note
-    let note = fetch_note(&api_addr, id, true).await.unwrap_or_else(|e| {
-        panic!("Failed to fetch note. Error: {:#}", e);
-    });
-
-    // Render the first note
-    let rendered_note = get_note_rendered_html(&api_addr, id)
-        .await
-        .unwrap_or_else(|e| {
-            panic!("Failed to get rendered note. Error: {:#}", e);
-        });
-
-    // Load the template
+    // Load and render template
     let template = ENV.get_template("body/note/read.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
     });
@@ -155,19 +171,20 @@ async fn route_note(
     Html(rendered)
 }
 
-async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -> Html<String> {
-    let id = path;
-
-    // Get the note
-    let note = match fetch_note(&api_addr, id, false).await {
-        Ok(note) => note,
+async fn route_edit(
+    session: Session,
+    handler: &NoteHandler,
+    Path(id): Path<i32>,
+) -> Html<String> {
+    // Get note data
+    let (note, breadcrumbs, tree) = match handler.get_note_data(id, false).await {
+        Ok(data) => data,
         Err(e) => {
             session
                 .set_flash(FlashMessage::error(format!("Failed to fetch note: {}", e)))
                 .await
                 .unwrap();
 
-            // Redirect to home page or another appropriate page when note fetch fails
             return Html(format!(
                 r#"<script>window.location.href = "/note/{}";</script>"#,
                 id
@@ -175,30 +192,7 @@ async fn route_edit(session: Session, api_addr: String, Path(path): Path<i32>) -
         }
     };
 
-    // Get the tree and breadcrumbs
-    let breadcrumbs: Option<Vec<NoteBreadcrumb>> = match get_note_breadcrumbs(&api_addr, id).await {
-        Ok(b) => Some(b),
-        Err(e) => {
-            eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
-            None
-        }
-    };
-
-    // Get the Tree
-    let tree = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
-        // TODO don't panic!
-        panic!("Failed to fetch note tree. Error: {:#}", e);
-    });
-    let tree = build_note_tree_html(
-        tree,
-        Some(id),
-        breadcrumbs
-            .as_ref()
-            .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
-        MAX_ITEMS_PER_PAGE,
-    );
-
-    // Load the template
+    // Load template
     let template = match ENV.get_template("body/note/edit.html") {
         Ok(template) => template,
         Err(e) => {
@@ -422,6 +416,7 @@ async fn route_move_note_post(
 pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str, port: &str) {
     let api_addr = format!("{api_scheme}://{api_host}:{api_port}");
     let addr = format!("{}:{}", host, port);
+    let handler = NoteHandler::new(api_addr);
 
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
@@ -436,27 +431,27 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route(
             "/note/:id",
             get({
-                let api_addr = api_addr.clone();
-                move |session: Session, Path(path): Path<i32>, query: Query<PaginationParams>| {
-                    route_note(session, api_addr.clone(), Path(path), query)
+                let handler = handler.clone();
+                move |session: Session, path: Path<i32>, query: Query<PaginationParams>| {
+                    route_note(session, &handler, path, query)
                 }
             }),
         )
         .route(
             "/",
             get({
-                let api_addr = api_addr.clone();
+                let handler = handler.clone();
                 move |session: Session, query: Query<PaginationParams>| {
-                    route_note(session, api_addr.clone(), Path(1), query)
+                    route_note(session, &handler, Path(1), query)
                 }
             }),
         )
         .route(
             "/edit/:id",
             get({
-                let api_addr = api_addr.clone();
-                move |session: Session, Path(path): Path<i32>| {
-                    route_edit(session, api_addr.clone(), Path(path))
+                let handler = handler.clone();
+                move |session: Session, path: Path<i32>| {
+                    route_edit(session, &handler, path)
                 }
             })
             .post({
