@@ -49,33 +49,21 @@ struct BodyHandler {
 }
 
 impl BodyHandler {
-    fn new(api_addr: String) -> Self {
-
-        // Get breadcrumbs
-        let breadcrumbs = match get_note_breadcrumbs(&self.api_addr, id).await {
-            Ok(b) => Some(b),
-            Err(e) => {
-                eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
-                None
-            }
-        };
-
+    async fn new(api_addr: String) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Get tree
-        let tree = fetch_note_tree(&self.api_addr).await?;
+        let tree = fetch_note_tree(&api_addr).await?;
         let tree_html = build_note_tree_html(
-            tree,
-            Some(id),
-            breadcrumbs
-                .as_ref()
-                .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
+            tree.clone(),
+            None,
+            Vec::new(),
             MAX_ITEMS_PER_PAGE,
         );
 
-        Self {
+        Ok(Self {
             api_addr,
-            tree,
-            breadcrumbs,
-        }
+            tree: vec![tree_html],
+            breadcrumbs: Vec::new(),
+        })
     }
 }
 
@@ -88,15 +76,28 @@ struct NoteHandler {
 }
 
 impl NoteHandler {
-    fn new(api_addr: String, note_id: &i32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let body_handler = BodyHandler::new(api_addr.clone());
-        let note = fetch_note(&self.api_addr, id, include_rendered).await?;
-        Self {
+    async fn new(api_addr: String, note_id: i32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        // Get body handler data
+        let body_handler = BodyHandler::new(api_addr.clone()).await?;
+        
+        // Get breadcrumbs
+        let breadcrumbs = match get_note_breadcrumbs(&api_addr, note_id).await {
+            Ok(b) => b,
+            Err(e) => {
+                eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
+                Vec::new()
+            }
+        };
+
+        // Get note
+        let note = fetch_note(&api_addr, note_id, true).await?;
+
+        Ok(Self {
             api_addr,
             tree: body_handler.tree,
-            breadcrumbs: body_handler.breadcrumbs,
-            note: note,
-        }
+            breadcrumbs,
+            note,
+        })
     }
 
     async fn get_rendered_html(&self, id: i32) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
@@ -158,7 +159,7 @@ async fn route_note(
     Query(params): Query<PaginationParams>,
 ) -> Html<String> {
     // Get note data
-    let note_handler = match NoteHandler::new(api_addr, id) {
+    let note_handler = match NoteHandler::new(api_addr, id).await {
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get note data: {:#}", e);
@@ -329,27 +330,21 @@ async fn search(Query(params): Query<std::collections::HashMap<String, String>>)
 async fn route_recent(
     api_addr: String,
     Query(params): Query<PaginationParams>
-    ) -> Html<String> {
-    // Load and render template
-    let template = ENV.get_template("body/note/read.html").unwrap_or_else(|e| {
-        panic!("Failed to load template. Error: {:#}", e);
-    });
-
+) -> Html<String> {
     // Get the body data
-    let body_handler = BodyHandler::new(api_addr);
+    let body_handler = match BodyHandler::new(api_addr.clone()).await {
+        Ok(handler) => handler,
+        Err(e) => {
+            eprintln!("Failed to create body handler: {:#?}", e);
+            return Html(String::from("<h1>Error getting page data</h1>"));
+        }
+    };
+    
     let tree_pages = body_handler.tree;
-    let breadcrumbs = body_handler.breadcrumbs;
-
-    // Get page from query params if present, otherwise find the page containing the note
-    let current_page = params
-        .page
-        .unwrap_or_else(|| find_page_for_note(&tree_pages, id));
-    let current_page = current_page.max(1);
-
-
+    
     // Get Recent notes
     let metadata_only = true;
-    let mut notes = match fetch_notes(&handler.api_addr, metadata_only).await {
+    let mut notes = match fetch_notes(&api_addr, metadata_only).await {
         Ok(notes) => notes,
         Err(e) => {
             eprintln!("Failed to fetch notes: {:#?}", e);
