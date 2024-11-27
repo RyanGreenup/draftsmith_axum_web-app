@@ -321,7 +321,7 @@ async fn handle_not_found(session: Session) -> Redirect {
         .unwrap_or_else(|e| {
             eprintln!("Failed to set flash message: {:#?}", e);
         });
-    
+
     Redirect::to("/recent")
 }
 
@@ -348,6 +348,7 @@ async fn search(Query(params): Query<std::collections::HashMap<String, String>>)
 
 // TODO implement recent
 async fn route_recent(
+    session: Session,
     api_addr: String,
     Query(params): Query<PaginationParams>
 ) -> Html<String> {
@@ -389,8 +390,12 @@ async fn route_recent(
         .unwrap_or_else(|| find_page_for_note(&tree_pages, None));
     let current_page = current_page.max(1);
 
+    // Get any flash messages
+    let flash = session.take_flash().await.unwrap_or(None);
+
     let rendered = template
         .render(context!(
+            flash => flash,
             recent_notes => recent_notes,
             current_page => current_page,
             tree => tree_pages,
@@ -580,8 +585,8 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/search", get(search))
         .route("/recent", get({
             let api_addr = api_addr.clone();
-            move |query: Query<PaginationParams>| async move {
-                route_recent(api_addr.clone(), query).await
+            move |session: Session, query: Query<PaginationParams>| async move {
+                route_recent(session, api_addr.clone(), query).await
             }
         }))
         .route(
