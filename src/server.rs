@@ -281,16 +281,35 @@ async fn search(Query(params): Query<std::collections::HashMap<String, String>>)
 }
 
 // TODO implement recent
-async fn route_recent(api_addr: String) -> Html<String> {
+async fn route_recent(handler: &NoteHandler) -> Html<String> {
     let template = ENV.get_template("body/recent.html").unwrap();
     let metadata_only = true;
-    let mut notes = match fetch_notes(&api_addr, metadata_only).await {
+    
+    // Get notes
+    let mut notes = match fetch_notes(&handler.api_addr, metadata_only).await {
         Ok(notes) => notes,
         Err(e) => {
             eprintln!("Failed to fetch notes: {:#?}", e);
             return Html(String::from("<h1>Error fetching notes</h1>"));
         }
     };
+    
+    // Get tree
+    let tree = match fetch_note_tree(&handler.api_addr).await {
+        Ok(tree) => tree,
+        Err(e) => {
+            eprintln!("Failed to fetch note tree: {:#?}", e);
+            return Html(String::from("<h1>Error fetching note tree</h1>"));
+        }
+    };
+    
+    let tree_html = build_note_tree_html(
+        tree,
+        None,
+        Vec::new(),
+        MAX_ITEMS_PER_PAGE,
+    );
+
     // Sort notes by updated_at
     notes.sort_by(|a, b| a.modified_at.cmp(&b.modified_at));
 
@@ -300,6 +319,7 @@ async fn route_recent(api_addr: String) -> Html<String> {
     let rendered = template
         .render(context!(
             recent_notes => recent_notes,
+            tree => tree_html,
         ))
         .unwrap_or_else(handle_template_error);
 
@@ -487,9 +507,9 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .nest("/static", build_static_routes())
         .route("/search", get(search))
         .route("/recent", get({
-            let api_addr = api_addr.clone();
+            let handler = handler.clone();
             move || async move {
-                route_recent(api_addr.clone()).await
+                route_recent(&handler).await
             }
         }))
         .route(
