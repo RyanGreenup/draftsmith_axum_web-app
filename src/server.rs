@@ -58,6 +58,15 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 // TODO None Path should be 1
 // TODO Better way than using a closure?
 // TODO generalize these to inherit similar to the templates
+fn find_page_for_note(tree_pages: &[String], note_id: i32) -> i32 {
+    for (index, page) in tree_pages.iter().enumerate() {
+        if page.contains(&format!("data-note-id=\"{}\"", note_id)) {
+            return (index + 1) as i32;
+        }
+    }
+    1 // Default to first page if note not found
+}
+
 async fn route_note(
     session: Session,
     api_addr: String,
@@ -66,19 +75,9 @@ async fn route_note(
 ) -> Html<String> {
     let id = path;
 
-    // Get page from query params, defaulting to 1 if not present
-    let current_page = params.page.unwrap_or(1).max(1);
-
-    // Store current page in session
-    session.insert("current_page", current_page).await.unwrap();
-
-    // Get and remove flash message in one operation
-    let flash = session.take_flash().await.unwrap_or(None);
-
-    // Get the note
-    let note = fetch_note(&api_addr, id, true).await.unwrap_or_else(|e| {
-        // TODO don't panic!
-        panic!("Failed to fetch note. Error: {:#}", e);
+    // Get the Tree first so we can determine the correct page
+    let tree = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
+        panic!("Failed to fetch note tree. Error: {:#}", e);
     });
 
     // Get the breadcrumbs
@@ -90,12 +89,7 @@ async fn route_note(
         }
     };
 
-    // Get the Tree
-    let tree = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
-        // TODO don't panic!
-        panic!("Failed to fetch note tree. Error: {:#}", e);
-    });
-    let tree = build_note_tree_html(
+    let tree_pages = build_note_tree_html(
         tree,
         Some(id),
         breadcrumbs
@@ -116,14 +110,41 @@ async fn route_note(
         panic!("Failed to load template. Error: {:#}", e);
     });
 
+    // Get page from query params if present, otherwise find the page containing the note
+    let current_page = params.page.unwrap_or_else(|| find_page_for_note(&tree_pages, id));
+    let current_page = current_page.max(1);
+
+    // Store current page in session
+    session.insert("current_page", current_page).await.unwrap();
+
+    // Get and remove flash message in one operation
+    let flash = session.take_flash().await.unwrap_or(None);
+
+    // Get the note
+    let note = fetch_note(&api_addr, id, true).await.unwrap_or_else(|e| {
+        panic!("Failed to fetch note. Error: {:#}", e);
+    });
+
+    // Render the first note
+    let rendered_note = get_note_rendered_html(&api_addr, id)
+        .await
+        .unwrap_or_else(|e| {
+            panic!("Failed to get rendered note. Error: {:#}", e);
+        });
+
+    // Load the template
+    let template = ENV.get_template("body/note/read.html").unwrap_or_else(|e| {
+        panic!("Failed to load template. Error: {:#}", e);
+    });
+
     let rendered = match template.render(context!(
         rendered_note => rendered_note,
         note => note,
         breadcrumbs => breadcrumbs,
         flash => flash,
-        tree => tree,
+        tree => tree_pages,
         current_page => current_page,
-        pages => tree,  // Add this to enable pagination template
+        pages => tree_pages
     )) {
         Ok(result) => result,
         Err(err) => handle_template_error(err),
