@@ -3,6 +3,7 @@ pub mod flash;
 pub mod html_builder;
 pub mod server;
 // TODO this should be a module of server
+mod routes;
 mod static_files;
 mod template_context;
 mod templates;

@@ -1,5 +1,6 @@
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::html_builder::build_note_tree_html;
+use crate::routes::notes::view::route_note;
 use crate::static_files::build_static_routes;
 use crate::template_context::{BodyTemplateContext, NoteTemplateContext, PaginationParams};
 use crate::templates::ENV;
@@ -18,48 +19,6 @@ use serde::Deserialize;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
 const MAX_ITEMS_PER_PAGE: usize = 50;
-
-async fn route_note(
-    session: Session,
-    api_addr: String,
-    Path(id): Path<i32>,
-    Query(params): Query<PaginationParams>,
-) -> Response {
-    // Get note data
-    let note_handler =
-        match NoteTemplateContext::new(session.clone(), Query(params), api_addr, id).await {
-            Ok(data) => data,
-            Err(e) => {
-                eprintln!("Failed to get note data: {:#}", e);
-                return handle_not_found(session).await.into_response();
-            }
-        };
-
-    // Get rendered HTML
-    let rendered_note = match note_handler.get_rendered_html(id).await {
-        Ok(html) => html,
-        Err(e) => {
-            eprintln!("Failed to get rendered note: {:#}", e);
-            return Html(String::from("<h1>Error rendering note</h1>")).into_response();
-        }
-    };
-
-    // Load and render template
-    let template = ENV.get_template("body/note/read.html").unwrap_or_else(|e| {
-        panic!("Failed to load template. Error: {:#}", e);
-    });
-
-    let ctx = context! { ..note_handler.ctx, ..context! {
-        rendered_note => rendered_note,
-    }};
-
-    let rendered = match template.render(ctx) {
-        Ok(result) => result,
-        Err(err) => handle_template_error(err),
-    };
-
-    Html(rendered).into_response()
-}
 
 async fn route_edit(
     session: Session,
@@ -116,7 +75,7 @@ async fn route_update_note(
     Redirect::to(&format!("/note/{id}"))
 }
 
-async fn handle_not_found(session: Session) -> Redirect {
+pub async fn handle_not_found(session: Session) -> Redirect {
     session
         .set_flash(FlashMessage::error("Page not found"))
         .await
@@ -127,7 +86,7 @@ async fn handle_not_found(session: Session) -> Redirect {
     Redirect::to("/recent")
 }
 
-fn handle_template_error(err: Error) -> String {
+pub fn handle_template_error(err: Error) -> String {
     eprintln!("Could not render template: {:#}", err);
     // render causes as well
     let mut err = &err as &dyn std::error::Error;
