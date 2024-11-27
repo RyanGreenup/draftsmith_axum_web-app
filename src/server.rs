@@ -168,7 +168,7 @@ async fn route_note(
     };
     let breadcrumbs = note_handler.breadcrumbs;
     let tree_pages = note_handler.tree;
-    let note = note_handler.note;
+    let note = note_handler.note.clone();
 
     // Get rendered HTML
     let rendered_note = match note_handler.get_rendered_html(id).await {
@@ -219,7 +219,7 @@ async fn route_edit(
     Query(params): Query<PaginationParams>,
 ) -> Html<String> {
     // Get note data
-    let note_handler = match NoteHandler::new(api_addr, id) {
+    let note_handler = match NoteHandler::new(api_addr, id).await {
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get note data: {:#}", e);
@@ -352,12 +352,15 @@ async fn route_recent(
         }
     };
 
-
     // Sort notes by updated_at
     notes.sort_by(|a, b| a.modified_at.cmp(&b.modified_at));
 
     // Include only the last 50 notes
     let recent_notes = notes.iter().rev().take(50).collect::<Vec<_>>();
+
+    let template = ENV.get_template("body/recent.html").unwrap_or_else(|e| {
+        panic!("Failed to load template. Error: {:#}", e);
+    });
 
     let rendered = template
         .render(context!(
