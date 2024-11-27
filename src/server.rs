@@ -77,12 +77,20 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
         // TODO don't panic!
         panic!("Failed to fetch note tree. Error: {:#}", e);
     });
+    // Get page parameter from query string, default to 1
+    let current_page = session
+        .get::<i32>("current_page")
+        .await
+        .unwrap_or(Ok(1))
+        .unwrap_or(1);
+
     let tree = build_note_tree_html(
         tree,
         Some(id),
         breadcrumbs
             .as_ref()
             .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
+        20, // max items per page
     );
 
     // Render the first note
@@ -103,6 +111,7 @@ async fn route_note(session: Session, api_addr: String, Path(path): Path<i32>) -
         breadcrumbs => breadcrumbs,
         flash => flash,
         tree => tree,
+        current_page => current_page,
     )) {
         Ok(result) => result,
         Err(err) => handle_template_error(err),

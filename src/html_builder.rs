@@ -17,6 +17,10 @@ pub fn build_note_tree_html(
         content: String::new(),
         item_count: 0,
     };
+
+    if max_items_per_page == 0 {
+        return Vec::new();
+    }
     
     // Start first page
     write!(
