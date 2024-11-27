@@ -1,6 +1,10 @@
+use crate::flash::{FlashMessage, FlashMessageStore};
+use axum::response::Redirect;
 use include_dir::{include_dir, Dir};
 use minijinja::Environment;
+use minijinja::Error;
 use once_cell::sync::Lazy;
+use tower_sessions::Session;
 
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 
@@ -31,3 +35,26 @@ pub static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
 
     env
 });
+
+pub async fn handle_not_found(session: Session) -> Redirect {
+    session
+        .set_flash(FlashMessage::error("Page not found"))
+        .await
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to set flash message: {:#?}", e);
+        });
+
+    Redirect::to("/recent")
+}
+
+pub fn handle_template_error(err: Error) -> String {
+    eprintln!("Could not render template: {:#}", err);
+    // render causes as well
+    let mut err = &err as &dyn std::error::Error;
+    while let Some(next_err) = err.source() {
+        eprintln!();
+        eprintln!("caused by: {:#}", next_err);
+        err = next_err;
+    }
+    String::from("<h1>Error rendering Template</h1></br> See STDERR for more information")
+}

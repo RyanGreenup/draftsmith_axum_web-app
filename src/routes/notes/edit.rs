@@ -1,4 +1,3 @@
-use crate::server::{handle_not_found, handle_template_error};
 use crate::template_context::{NoteTemplateContext, PaginationParams};
 use axum::{
     extract::{Path, Query},
@@ -7,7 +6,7 @@ use axum::{
 };
 
 use crate::flash::{FlashMessage, FlashMessageStore};
-use crate::templates::ENV;
+use crate::templates::{handle_not_found, handle_template_error, ENV};
 use axum::response::{IntoResponse, Response};
 use draftsmith_rest_api::client::{update_note, UpdateNoteRequest};
 use tower_sessions::Session;

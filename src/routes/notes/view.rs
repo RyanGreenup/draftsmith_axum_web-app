@@ -1,6 +1,5 @@
-use crate::server::{handle_not_found, handle_template_error};
 use crate::template_context::{NoteTemplateContext, PaginationParams};
-use crate::templates::ENV;
+use crate::templates::{handle_not_found, handle_template_error, ENV};
 use axum::{
     extract::{Path, Query},
     response::{Html, IntoResponse, Response},

@@ -6,7 +6,7 @@ use crate::routes::notes::{
 };
 use crate::static_files::build_static_routes;
 use crate::template_context::{BodyTemplateContext, PaginationParams};
-use crate::templates::ENV;
+use crate::templates::{handle_template_error, ENV};
 use axum::{
     extract::{Path, Query},
     response::{Html, Redirect},
@@ -17,34 +17,11 @@ use draftsmith_rest_api::client::{
     attach_child_note, detach_child_note, fetch_note_tree, get_note_breadcrumbs,
     notes::fetch_notes, AttachChildRequest, NoteBreadcrumb, UpdateNoteRequest,
 };
-use minijinja::{context, Error};
+use minijinja::context;
 use serde::Deserialize;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
 const MAX_ITEMS_PER_PAGE: usize = 50;
-
-pub async fn handle_not_found(session: Session) -> Redirect {
-    session
-        .set_flash(FlashMessage::error("Page not found"))
-        .await
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to set flash message: {:#?}", e);
-        });
-
-    Redirect::to("/recent")
-}
-
-pub fn handle_template_error(err: Error) -> String {
-    eprintln!("Could not render template: {:#}", err);
-    // render causes as well
-    let mut err = &err as &dyn std::error::Error;
-    while let Some(next_err) = err.source() {
-        eprintln!();
-        eprintln!("caused by: {:#}", next_err);
-        err = next_err;
-    }
-    String::from("<h1>Error rendering Template</h1></br> See STDERR for more information")
-}
 
 // TODO implement search
 async fn search(Query(params): Query<std::collections::HashMap<String, String>>) -> Html<String> {
