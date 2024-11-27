@@ -248,9 +248,9 @@ export default class extends Controller {
     const urlParams = new URLSearchParams(window.location.search);
     const currentPage = parseInt(urlParams.get('page')) || 1;
     
-    // Get total pages from the last page number in pagination
-    const pages = document.querySelectorAll('.pagination-item');
-    const totalPages = pages.length;
+    // Get total pages by counting the number of tree page elements
+    const treePages = document.querySelectorAll('.menu[data-controller="tree"]');
+    const totalPages = treePages.length;
 
     // Calculate new page
     let newPage;
