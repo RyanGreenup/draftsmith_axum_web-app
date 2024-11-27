@@ -8,11 +8,9 @@ use axum::{
     routing::{get, post},
     Form, Router,
 };
-use draftsmith_rest_api::client::notes::NoteWithoutFts;
 use draftsmith_rest_api::client::{
-    attach_child_note, detach_child_note, fetch_note, fetch_note_tree, get_note_breadcrumbs,
-    notes::{fetch_notes, get_note_rendered_html, NoteError},
-    update_note, AttachChildRequest, NoteBreadcrumb, UpdateNoteRequest,
+    attach_child_note, detach_child_note, fetch_note_tree, get_note_breadcrumbs,
+    notes::fetch_notes, update_note, AttachChildRequest, NoteBreadcrumb, UpdateNoteRequest,
 };
 use include_dir::{include_dir, Dir};
 use minijinja::{context, Environment, Error};

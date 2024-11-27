@@ -1,23 +1,14 @@
-use crate::flash::{FlashMessage, FlashMessageStore};
+use crate::flash::FlashMessageStore;
 use crate::html_builder::build_note_tree_html;
-use crate::static_files::build_static_routes;
-use axum::{
-    extract::{Path, Query},
-    response::{Html, IntoResponse, Redirect, Response},
-    routing::{get, post},
-    Form, Router,
-};
+use axum::extract::Query;
 use draftsmith_rest_api::client::notes::NoteWithoutFts;
 use draftsmith_rest_api::client::{
-    attach_child_note, detach_child_note, fetch_note, fetch_note_tree, get_note_breadcrumbs,
-    notes::{fetch_notes, get_note_rendered_html, NoteError},
-    update_note, AttachChildRequest, NoteBreadcrumb, UpdateNoteRequest,
+    fetch_note, fetch_note_tree, get_note_breadcrumbs,
+    notes::{get_note_rendered_html, NoteError},
 };
-use include_dir::{include_dir, Dir};
-use minijinja::{context, Environment, Error};
-use once_cell::sync::Lazy;
+use minijinja::context;
 use serde::Deserialize;
-use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
+use tower_sessions::Session;
 
 const MAX_ITEMS_PER_PAGE: usize = 50;
 
