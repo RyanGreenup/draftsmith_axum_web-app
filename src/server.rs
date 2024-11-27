@@ -61,7 +61,7 @@ impl BodyHandler {
 
         Ok(Self {
             api_addr,
-            tree: vec![tree_html],
+            tree: tree_html,
             breadcrumbs: Vec::new(),
         })
     }
