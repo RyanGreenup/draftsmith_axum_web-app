@@ -519,14 +519,16 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route(
             "/note/:id",
             get({
-                move |session: Session, path: Path<i32>, query: Query<PaginationParams>| async move {
-                    route_note(session, api_addr.clone(), path, query).await
+                let api_addr = api_addr.clone();
+                move |session: Session, Path(id): Path<i32>, query: Query<PaginationParams>| async move {
+                    route_note(session, api_addr.clone(), Path(id), query).await
                 }
             }),
         )
         .route(
             "/",
             get({
+                let api_addr = api_addr.clone();
                 move |session: Session, query: Query<PaginationParams>| async move {
                     route_note(session, api_addr.clone(), Path(1), query).await
                 }
@@ -535,22 +537,22 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route(
             "/edit/:id",
             get({
-                move |session: Session, path: Path<i32>, query: Query<PaginationParams>| async move {
-                    route_edit(session, api_addr.clone(), path, query).await
+                let api_addr = api_addr.clone();
+                move |session: Session, Path(id): Path<i32>, query: Query<PaginationParams>| async move {
+                    route_edit(session, api_addr.clone(), Path(id), query).await
                 }
             })
             .post({
                 let api_addr = api_addr.clone();
-                move |session: Session,
-                      Path(path): Path<i32>,
-                      Form(note): Form<UpdateNoteRequest>| async move {
-                    route_update_note(session, api_addr.clone(), Path(path), Form(note)).await
+                move |session: Session, Path(id): Path<i32>, form: Form<UpdateNoteRequest>| async move {
+                    route_update_note(session, api_addr.clone(), Path(id), form).await
                 }
             }),
         )
         .nest("/static", build_static_routes())
         .route("/search", get(search))
         .route("/recent", get({
+            let api_addr = api_addr.clone();
             move |query: Query<PaginationParams>| async move {
                 route_recent(api_addr.clone(), query).await
             }
@@ -558,21 +560,24 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route(
             "/note/:id/move",
             get({
-                move |Path(path): Path<i32>| async move {
-                    route_move_note_get(api_addr.clone(), Path(path)).await
+                let api_addr = api_addr.clone();
+                move |Path(id): Path<i32>| async move {
+                    route_move_note_get(api_addr.clone(), Path(id)).await
                 }
             })
             .post({
-                move |session: Session, Path(path): Path<i32>, Form(form): Form<MoveNoteForm>| async move {
-                    route_move_note_post(session, api_addr.clone(), Path(path), Form(form)).await
+                let api_addr = api_addr.clone();
+                move |session: Session, Path(id): Path<i32>, form: Form<MoveNoteForm>| async move {
+                    route_move_note_post(session, api_addr.clone(), Path(id), form).await
                 }
             }),
         )
         .route(
             "/note/:id/detach",
             post({
-                move |session: Session, Path(path): Path<i32>| async move {
-                    route_detach_note_post(session, api_addr.clone(), Path(path)).await
+                let api_addr = api_addr.clone();
+                move |session: Session, Path(id): Path<i32>| async move {
+                    route_detach_note_post(session, api_addr.clone(), Path(id)).await
                 }
             }),
         )
