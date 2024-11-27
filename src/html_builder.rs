@@ -15,6 +15,27 @@ pub fn set_breadcrumbs(breadcrumbs: Vec<i32>) {
     }
 }
 
+pub fn should_be_open(node_id: i32, current_note_id: i32) -> bool {
+    if let Ok(crumbs) = get_breadcrumbs().lock() {
+        crumbs.contains(&node_id) || current_note_id == node_id
+    } else {
+        false // fallback if lock fails
+    }
+}
+
+fn build_details(node_id: i32, current_note_id: Option<i32>) -> String {
+    let open_status = if should_be_open(node_id, current_note_id.unwrap_or(-1)) {
+        " open"
+    } else {
+        ""
+    };
+
+    format!(
+        r#"<details{}>"#,
+        open_status,
+    )
+}
+
 pub struct TreePage {
     content: String,
     item_count: usize,
@@ -101,7 +122,7 @@ fn render_node_with_paging(
             if i > 0 {
                 current_page.content.push_str("<ul>");
             }
-            render_context_node(current_page, ancestor, current_note_id, parent_ids);
+            render_context_node(current_page, ancestor, current_note_id);
         }
     }
 
@@ -113,8 +134,6 @@ fn render_node_with_paging(
         current_page,
         node,
         current_note_id,
-        parent_ids,
-        levels_below_current,
     );
     current_page.item_count += 1;
 
@@ -156,8 +175,6 @@ fn render_single_node(
     page: &mut TreePage,
     node: &NoteTreeNode,
     current_note_id: Option<i32>,
-    _parent_ids: &[i32], // Keep parameter for compatibility but don't use it
-    _levels_below_current: i32,
 ) {
     let class_str = if Some(node.id) == current_note_id {
         r#"note-item bg-blue-100 text-blue-800 rounded-md"#
@@ -172,17 +189,12 @@ fn render_single_node(
     )
     .unwrap();
 
-    // Check breadcrumbs from static variable
-    let should_be_open = if let Ok(crumbs) = get_breadcrumbs().lock() {
-        crumbs.contains(&node.id) || current_note_id == Some(node.id)
-    } else {
-        current_note_id == Some(node.id) // fallback if lock fails
-    };
+    let details = build_details(node.id, current_note_id);
 
     write!(
         page.content,
-        r#"<details{}"#,
-        if should_be_open { " open" } else { "" }
+        "{}",
+        details.as_str(),
     )
     .unwrap();
 
@@ -206,8 +218,7 @@ fn render_single_node(
 fn render_context_node(
     page: &mut TreePage,
     node: &NoteTreeNode,
-    _current_note_id: Option<i32>,
-    _parent_ids: &[i32], // Keep parameter for compatibility but don't use it
+    current_note_id: Option<i32>,
 ) {
     let class_str = "note-item opacity-50";
     write!(
@@ -217,16 +228,12 @@ fn render_context_node(
     )
     .unwrap();
 
-    let should_be_open = if let Ok(crumbs) = get_breadcrumbs().lock() {
-        crumbs.contains(&node.id)
-    } else {
-        false // fallback if lock fails
-    };
+    let details = build_details(node.id, current_note_id);
 
     write!(
         page.content,
-        r#"<details{}><summary><a href="/note/{}">{}</a></summary>"#,
-        if should_be_open { " open" } else { "" },
+        r#"{}<summary><a href="/note/{}">{}</a></summary>"#,
+        details,
         node.id,
         html_escape::encode_text(node.title.as_deref().unwrap_or("Untitled"))
     )
