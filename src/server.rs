@@ -164,7 +164,7 @@ async fn route_note(
             eprintln!("Failed to get note data: {:#}", e);
             return Html(String::from("<h1>Error fetching note data</h1>"));
         }
-    }
+    };
     let breadcrumbs = note_handler.breadcrumbs;
     let tree_pages = note_handler.tree;
     let note = note_handler.note;
@@ -224,7 +224,7 @@ async fn route_edit(
             eprintln!("Failed to get note data: {:#}", e);
             return Html(String::from("<h1>Error fetching note data</h1>"));
         }
-    }
+    };
     let breadcrumbs = note_handler.breadcrumbs;
     let tree_pages = note_handler.tree;
     let note = note_handler.note;
