@@ -2,6 +2,7 @@ use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::html_builder::build_note_tree_html;
 use crate::static_files::build_static_routes;
 use crate::template_context::{BodyTemplateContext, NoteTemplateContext, PaginationParams};
+use crate::templates::ENV;
 use axum::{
     extract::{Path, Query},
     response::{Html, IntoResponse, Redirect, Response},
@@ -12,43 +13,11 @@ use draftsmith_rest_api::client::{
     attach_child_note, detach_child_note, fetch_note_tree, get_note_breadcrumbs,
     notes::fetch_notes, update_note, AttachChildRequest, NoteBreadcrumb, UpdateNoteRequest,
 };
-use include_dir::{include_dir, Dir};
-use minijinja::{context, Environment, Error};
-use once_cell::sync::Lazy;
+use minijinja::{context, Error};
 use serde::Deserialize;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
 const MAX_ITEMS_PER_PAGE: usize = 50;
-
-static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
-
-static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
-    let mut env = Environment::new();
-    // env.set_loader(path_loader("templates"));
-
-    for entry in TEMPLATE_DIR
-        .find("**/*.html")
-        .expect("Unable to walk Template Directory")
-    {
-        if let Some(file) = entry.as_file() {
-            let contents = String::from_utf8_lossy(file.contents()).to_string();
-            env.add_template_owned(file.path().to_str().unwrap(), contents)
-                .unwrap();
-        }
-    }
-
-    /*
-
-    // Example: Add custom functions
-    fn concat(a: String, b: String) -> Result<String, Error> {
-        Ok(format!("{}{}", a, b))
-    }
-    env.add_function("c", concat);
-
-    */
-
-    env
-});
 
 async fn route_note(
     session: Session,

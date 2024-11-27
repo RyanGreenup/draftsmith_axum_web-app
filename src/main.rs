@@ -5,6 +5,7 @@ pub mod server;
 // TODO this should be a module of server
 mod static_files;
 mod template_context;
+mod templates;
 
 pub const MAX_ITEMS_PER_PAGE: usize = 50;
 
