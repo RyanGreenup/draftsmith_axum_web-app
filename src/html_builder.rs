@@ -209,13 +209,6 @@ fn render_single_node(
 
     let details = build_details(node.id, current_note_id, node);
 
-    write!(
-        page.content,
-        "{}",
-        details.as_str(),
-    )
-    .unwrap();
-
     let title = node.title.as_deref().unwrap_or("Untitled");
     let summary_class = if Some(node.id) == current_note_id {
         "font-semibold"
@@ -225,7 +218,8 @@ fn render_single_node(
 
     write!(
         page.content,
-        r#"><summary class="{}"><a href="/note/{}">{}</a></summary>"#,
+        r#"{}<summary class="{}"><a href="/note/{}">{}</a></summary>"#,
+        details.as_str(),
         summary_class,
         node.id,
         html_escape::encode_text(title)
