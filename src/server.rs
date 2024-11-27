@@ -4,7 +4,7 @@ use crate::static_files::build_static_routes;
 use draftsmith_rest_api::client::notes::NoteWithoutFts;
 use axum::{
     extract::{Path, Query},
-    response::{Html, Redirect, IntoResponse},
+    response::{Html, Redirect, IntoResponse, Response},
     routing::{get, post},
     Form, Router,
 };
@@ -159,13 +159,13 @@ async fn route_note(
     api_addr: String,
     Path(id): Path<i32>,
     Query(params): Query<PaginationParams>,
-) -> impl IntoResponse {
+) -> Response {
     // Get note data
     let note_handler = match NoteHandler::new(api_addr, id).await {
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get note data: {:#}", e);
-            return handle_not_found(session).await;
+            return handle_not_found(session).await.into_response();
         }
     };
     let breadcrumbs = note_handler.breadcrumbs.clone();
@@ -177,7 +177,7 @@ async fn route_note(
         Ok(html) => html,
         Err(e) => {
             eprintln!("Failed to get rendered note: {:#}", e);
-            return Html(String::from("<h1>Error rendering note</h1>"));
+            return Html(String::from("<h1>Error rendering note</h1>")).into_response();
         }
     };
 
@@ -211,7 +211,7 @@ async fn route_note(
         Err(err) => handle_template_error(err),
     };
 
-    Html(rendered)
+    Html(rendered).into_response()
 }
 
 async fn route_edit(
@@ -219,13 +219,13 @@ async fn route_edit(
     api_addr: String,
     Path(id): Path<i32>,
     Query(params): Query<PaginationParams>,
-) -> impl IntoResponse {
+) -> Response {
     // Get note data
     let note_handler = match NoteHandler::new(api_addr, id).await {
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get note data: {:#}", e);
-            return handle_not_found(session).await;
+            return handle_not_found(session).await.into_response();
         }
     };
     let breadcrumbs = note_handler.breadcrumbs.clone();
@@ -234,7 +234,7 @@ async fn route_edit(
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get note data: {:#}", e);
-            return Html(String::from("<h1>Error fetching note content</h1>"));
+            return Html(String::from("<h1>Error fetching note content</h1>")).into_response();
         }
     };
 
@@ -285,7 +285,7 @@ async fn route_edit(
         }
     };
 
-    Html(rendered)
+    Html(rendered).into_response()
 }
 
 async fn route_update_note(
