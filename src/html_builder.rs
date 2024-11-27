@@ -1,5 +1,19 @@
 use draftsmith_rest_api::client::NoteTreeNode;
 use std::fmt::Write;
+use std::sync::OnceLock;
+use std::sync::Mutex;
+
+static CURRENT_BREADCRUMBS: OnceLock<Mutex<Vec<i32>>> = OnceLock::new();
+
+fn get_breadcrumbs() -> &'static Mutex<Vec<i32>> {
+    CURRENT_BREADCRUMBS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+pub fn set_breadcrumbs(breadcrumbs: Vec<i32>) {
+    if let Ok(mut crumbs) = get_breadcrumbs().lock() {
+        *crumbs = breadcrumbs;
+    }
+}
 
 pub struct TreePage {
     content: String,
@@ -142,7 +156,7 @@ fn render_single_node(
     page: &mut TreePage,
     node: &NoteTreeNode,
     current_note_id: Option<i32>,
-    parent_ids: &[i32],
+    _parent_ids: &[i32], // Keep parameter for compatibility but don't use it
     _levels_below_current: i32,
 ) {
     let class_str = if Some(node.id) == current_note_id {
@@ -158,10 +172,12 @@ fn render_single_node(
     )
     .unwrap();
 
-    // Check if this node is either:
-    // 1. A parent of the current note
-    // 2. The current note itself
-    let should_be_open = parent_ids.contains(&node.id) || current_note_id == Some(node.id);
+    // Check breadcrumbs from static variable
+    let should_be_open = if let Ok(crumbs) = get_breadcrumbs().lock() {
+        crumbs.contains(&node.id) || current_note_id == Some(node.id)
+    } else {
+        current_note_id == Some(node.id) // fallback if lock fails
+    };
 
     write!(
         page.content,
@@ -191,7 +207,7 @@ fn render_context_node(
     page: &mut TreePage,
     node: &NoteTreeNode,
     _current_note_id: Option<i32>,
-    parent_ids: &[i32],
+    _parent_ids: &[i32], // Keep parameter for compatibility but don't use it
 ) {
     let class_str = "note-item opacity-50";
     write!(
@@ -201,10 +217,16 @@ fn render_context_node(
     )
     .unwrap();
 
-    let _is_parent = parent_ids.contains(&node.id);
+    let should_be_open = if let Ok(crumbs) = get_breadcrumbs().lock() {
+        crumbs.contains(&node.id)
+    } else {
+        false // fallback if lock fails
+    };
+
     write!(
         page.content,
-        r#"<details open><summary><a href="/note/{}">{}</a></summary>"#,
+        r#"<details{}><summary><a href="/note/{}">{}</a></summary>"#,
+        if should_be_open { " open" } else { "" },
         node.id,
         html_escape::encode_text(node.title.as_deref().unwrap_or("Untitled"))
     )
