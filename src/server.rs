@@ -383,6 +383,7 @@ async fn route_recent(
             recent_notes => recent_notes,
             current_page => current_page,
             tree => tree_pages,
+            pages => tree_pages,
         ))
         .unwrap_or_else(handle_template_error);
 
