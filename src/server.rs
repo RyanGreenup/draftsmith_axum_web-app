@@ -281,7 +281,7 @@ async fn search(Query(params): Query<std::collections::HashMap<String, String>>)
 }
 
 // TODO implement recent
-async fn recent(api_addr: String) -> Html<String> {
+async fn route_recent(api_addr: String) -> Html<String> {
     let template = ENV.get_template("body/recent.html").unwrap();
     let metadata_only = true;
     let mut notes = match fetch_notes(&api_addr, metadata_only).await {
@@ -489,7 +489,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/recent", get({
             let api_addr = api_addr.clone();
             move || async move {
-                recent(api_addr.clone()).await
+                route_recent(api_addr.clone()).await
             }
         }))
         .route(
