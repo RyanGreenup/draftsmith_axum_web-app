@@ -295,6 +295,7 @@ async fn route_move_note_get(api_addr: String, Path(note_id): Path<i32>) -> Html
         breadcrumbs
             .as_ref()
             .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
+        20, // max items per page
     );
 
     let rendered = template
