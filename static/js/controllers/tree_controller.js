@@ -262,10 +262,10 @@ export default class extends Controller {
 
     // Only navigate if page actually changes
     if (newPage !== currentPage) {
-        // Preserve the current note ID from the URL
-        const currentPath = window.location.pathname;
-        const newUrl = `${currentPath}?page=${newPage}`;
-        window.location.href = newUrl;
+        // Get the current URL and update/add the page parameter
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', newPage);
+        window.location.href = url.toString();
     }
   }
 
