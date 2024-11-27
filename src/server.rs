@@ -2,6 +2,24 @@ use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::html_builder::build_note_tree_html;
 use crate::static_files::build_static_routes;
 use draftsmith_rest_api::client::notes::NoteWithoutFts;
+use axum::{
+    extract::{Path, Query},
+    response::{Html, Redirect},
+    routing::{get, post},
+    Form, Router,
+};
+use draftsmith_rest_api::client::{
+    attach_child_note, detach_child_note, fetch_note, fetch_note_tree, get_note_breadcrumbs,
+    notes::{get_note_rendered_html, fetch_notes}, update_note, AttachChildRequest, NoteBreadcrumb,
+    UpdateNoteRequest,
+};
+use include_dir::{include_dir, Dir};
+use minijinja::{context, Environment, Error};
+use once_cell::sync::Lazy;
+use serde::Deserialize;
+use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
+
+const MAX_ITEMS_PER_PAGE: usize = 50;
 
 #[derive(Clone)]
 struct NoteHandler {
@@ -48,24 +66,6 @@ impl NoteHandler {
         Ok(get_note_rendered_html(&self.api_addr, id).await?)
     }
 }
-use axum::{
-    extract::{Path, Query},
-    response::{Html, Redirect},
-    routing::{get, post},
-    Form, Router,
-};
-use draftsmith_rest_api::client::{
-    attach_child_note, detach_child_note, fetch_note, fetch_note_tree, get_note_breadcrumbs,
-    notes::get_note_rendered_html, update_note, AttachChildRequest, NoteBreadcrumb,
-    UpdateNoteRequest,
-};
-use include_dir::{include_dir, Dir};
-use minijinja::{context, Environment, Error};
-use once_cell::sync::Lazy;
-use serde::Deserialize;
-use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
-
-const MAX_ITEMS_PER_PAGE: usize = 50;
 
 #[derive(Deserialize)]
 struct PaginationParams {
@@ -281,8 +281,29 @@ async fn search(Query(params): Query<std::collections::HashMap<String, String>>)
 }
 
 // TODO implement recent
-async fn recent() -> Html<String> {
-    Html("TODO Recent Pages".to_string())
+async fn recent(api_addr: String) -> Html<String> {
+    let template = ENV.get_template("body/recent.html").unwrap();
+    let metadata_only = true;
+    let mut notes = match fetch_notes(&api_addr, metadata_only).await {
+        Ok(notes) => notes,
+        Err(e) => {
+            eprintln!("Failed to fetch notes: {:#?}", e);
+            return Html(String::from("<h1>Error fetching notes</h1>"));
+        }
+    };
+    // Sort notes by updated_at
+    notes.sort_by(|a, b| a.modified_at.cmp(&b.modified_at));
+
+    // Include only the last 50 notes
+    let recent_notes = notes.iter().rev().take(50).collect::<Vec<_>>();
+
+    let rendered = template
+        .render(context!(
+            recent_notes => recent_notes,
+        ))
+        .unwrap_or_else(handle_template_error);
+
+    Html(rendered)
 }
 
 #[derive(Deserialize)]
@@ -465,7 +486,12 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         )
         .nest("/static", build_static_routes())
         .route("/search", get(search))
-        .route("/recent", get(recent))
+        .route("/recent", {
+            let api_addr = api_addr.clone();
+             || async move {
+                 recent(api_addr.clone()).await
+            }
+        })
         .route(
             "/note/:id/move",
             get({
