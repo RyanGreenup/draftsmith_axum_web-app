@@ -7,6 +7,9 @@ export default class extends Controller {
     // Track original states of details elements
     this.originalDetailsStates = new WeakMap()
 
+    // Add keyboard navigation
+    document.addEventListener('keydown', this.handleKeyNavigation.bind(this))
+
     // Initialize all note items as draggable
     this.element.querySelectorAll('.note-item').forEach(item => {
       console.log("Setting up draggable item:", item);
@@ -213,6 +216,87 @@ export default class extends Controller {
             console.error('Error detaching note:', error)
             window.location.href = `/note/${draggedNoteId}`
         }
+    }
+  }
+
+  handleKeyNavigation(event) {
+    // Only handle Alt + arrow key combinations
+    if (!event.altKey) return;
+
+    switch (event.key) {
+        case 'ArrowLeft':
+            event.preventDefault();
+            this.navigateToPage('prev');
+            break;
+        case 'ArrowRight':
+            event.preventDefault();
+            this.navigateToPage('next');
+            break;
+        case 'ArrowUp':
+            event.preventDefault();
+            this.navigateToNearestNote('prev');
+            break;
+        case 'ArrowDown':
+            event.preventDefault();
+            this.navigateToNearestNote('next');
+            break;
+    }
+  }
+
+  navigateToPage(direction) {
+    // Get current page from URL or data attribute
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentPage = parseInt(urlParams.get('page')) || 1;
+    
+    // Get total pages from the last page number in pagination
+    const pages = document.querySelectorAll('.pagination-item');
+    const totalPages = pages.length;
+
+    // Calculate new page
+    let newPage;
+    if (direction === 'next') {
+        newPage = Math.min(currentPage + 1, totalPages);
+    } else {
+        newPage = Math.max(currentPage - 1, 1);
+    }
+
+    // Only navigate if page actually changes
+    if (newPage !== currentPage) {
+        // Preserve the current note ID from the URL
+        const currentPath = window.location.pathname;
+        const newUrl = `${currentPath}?page=${newPage}`;
+        window.location.href = newUrl;
+    }
+  }
+
+  navigateToNearestNote(direction) {
+    // Get all note links
+    const noteLinks = document.querySelectorAll('.note-item a');
+    if (!noteLinks.length) return;
+
+    // Get current note ID from URL
+    const currentPath = window.location.pathname;
+    const currentNoteId = currentPath.split('/').pop();
+
+    // Find current note index
+    let currentIndex = -1;
+    noteLinks.forEach((link, index) => {
+        if (link.href.endsWith(`/note/${currentNoteId}`)) {
+            currentIndex = index;
+        }
+    });
+
+    // Calculate new index
+    let newIndex;
+    if (direction === 'next') {
+        newIndex = currentIndex < noteLinks.length - 1 ? currentIndex + 1 : 0;
+    } else {
+        newIndex = currentIndex > 0 ? currentIndex - 1 : noteLinks.length - 1;
+    }
+
+    // Navigate to new note
+    if (newIndex !== currentIndex) {
+        window.location.href = noteLinks[newIndex].href;
     }
   }
 }
