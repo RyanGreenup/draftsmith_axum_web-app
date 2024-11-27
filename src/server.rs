@@ -1,6 +1,9 @@
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::html_builder::build_note_tree_html;
-use crate::routes::notes::{edit::route_edit, view::route_note};
+use crate::routes::notes::{
+    edit::{route_edit, route_update_note},
+    view::route_note,
+};
 use crate::static_files::build_static_routes;
 use crate::template_context::{BodyTemplateContext, PaginationParams};
 use crate::templates::ENV;
@@ -12,39 +15,13 @@ use axum::{
 };
 use draftsmith_rest_api::client::{
     attach_child_note, detach_child_note, fetch_note_tree, get_note_breadcrumbs,
-    notes::fetch_notes, update_note, AttachChildRequest, NoteBreadcrumb, UpdateNoteRequest,
+    notes::fetch_notes, AttachChildRequest, NoteBreadcrumb, UpdateNoteRequest,
 };
 use minijinja::{context, Error};
 use serde::Deserialize;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
 const MAX_ITEMS_PER_PAGE: usize = 50;
-
-async fn route_update_note(
-    session: Session,
-    api_addr: String,
-    Path(path): Path<i32>,
-    Form(note): Form<UpdateNoteRequest>,
-) -> Redirect {
-    let id = path;
-
-    match update_note(&api_addr, id, note).await {
-        Ok(_) => {
-            session
-                .set_flash(FlashMessage::success("Note updated successfully"))
-                .await
-                .unwrap();
-        }
-        Err(e) => {
-            session
-                .set_flash(FlashMessage::error(format!("Failed to update note: {}", e)))
-                .await
-                .unwrap();
-        }
-    }
-
-    Redirect::to(&format!("/note/{id}"))
-}
 
 pub async fn handle_not_found(session: Session) -> Redirect {
     session

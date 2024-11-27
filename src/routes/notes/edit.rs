@@ -1,10 +1,15 @@
 use crate::server::{handle_not_found, handle_template_error};
 use crate::template_context::{NoteTemplateContext, PaginationParams};
-use crate::templates::ENV;
 use axum::{
     extract::{Path, Query},
-    response::{Html, IntoResponse, Response},
+    response::{Html, Redirect},
+    Form,
 };
+
+use crate::flash::{FlashMessage, FlashMessageStore};
+use crate::templates::ENV;
+use axum::response::{IntoResponse, Response};
+use draftsmith_rest_api::client::{update_note, UpdateNoteRequest};
 use tower_sessions::Session;
 
 pub async fn route_edit(
@@ -34,4 +39,30 @@ pub async fn route_edit(
         .unwrap_or_else(handle_template_error);
 
     Html(rendered).into_response()
+}
+
+pub async fn route_update_note(
+    session: Session,
+    api_addr: String,
+    Path(path): Path<i32>,
+    Form(note): Form<UpdateNoteRequest>,
+) -> Redirect {
+    let id = path;
+
+    match update_note(&api_addr, id, note).await {
+        Ok(_) => {
+            session
+                .set_flash(FlashMessage::success("Note updated successfully"))
+                .await
+                .unwrap();
+        }
+        Err(e) => {
+            session
+                .set_flash(FlashMessage::error(format!("Failed to update note: {}", e)))
+                .await
+                .unwrap();
+        }
+    }
+
+    Redirect::to(&format!("/note/{id}"))
 }
