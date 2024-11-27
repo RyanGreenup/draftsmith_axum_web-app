@@ -7,7 +7,8 @@ static CSS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/css");
 static JS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/js");
 static MEDIA_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/media");
 static KATEX_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/katex");
-static STIMULUS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/node_modules/@hotwired/stimulus/dist/");
+static STIMULUS_DIR: Dir<'_> =
+    include_dir!("$CARGO_MANIFEST_DIR/node_modules/@hotwired/stimulus/dist/");
 static CONTROLLERS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static/js/controllers");
 
 const NOT_FOUND_RESPONSE: &[u8] = b"Not Found";

@@ -111,7 +111,9 @@ async fn route_note(
     });
 
     // Get page from query params if present, otherwise find the page containing the note
-    let current_page = params.page.unwrap_or_else(|| find_page_for_note(&tree_pages, id));
+    let current_page = params
+        .page
+        .unwrap_or_else(|| find_page_for_note(&tree_pages, id));
     let current_page = current_page.max(1);
 
     // Store current page in session
@@ -435,9 +437,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             "/note/:id",
             get({
                 let api_addr = api_addr.clone();
-                move |session: Session,
-                      Path(path): Path<i32>,
-                      query: Query<PaginationParams>| {
+                move |session: Session, Path(path): Path<i32>, query: Query<PaginationParams>| {
                     route_note(session, api_addr.clone(), Path(path), query)
                 }
             }),

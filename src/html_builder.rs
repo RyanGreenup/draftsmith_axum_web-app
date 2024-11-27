@@ -21,16 +21,17 @@ pub fn build_note_tree_html(
     if max_items_per_page == 0 {
         return Vec::new();
     }
-    
+
     // Start first page
     write!(
         current_page.content,
         r#"<ul class="menu bg-base-200 rounded-box w-full md:w-56" data-controller="tree">"#
-    ).unwrap();
+    )
+    .unwrap();
 
     // Track ancestry for context when splitting pages
     let mut ancestry = Vec::new();
-    
+
     for node in &tree {
         render_node_with_paging(
             node,
@@ -70,16 +71,17 @@ fn render_node_with_paging(
         // Close all open tags properly
         current_page.content.push_str("</details></li></ul>");
         pages.push(std::mem::take(&mut current_page.content));
-        
+
         // Start new page
         write!(
             current_page.content,
             r#"<ul class="menu bg-base-200 rounded-box w-full md:w-56" data-controller="tree">"#
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         // Reset count and add ancestry context
         current_page.item_count = 0;
-        
+
         // Add ancestor nodes as context with proper nesting
         let mut current_level = String::new();
         for (i, ancestor) in ancestry.iter().enumerate() {
@@ -94,7 +96,13 @@ fn render_node_with_paging(
     ancestry.push(node.clone());
 
     // Render current node
-    render_single_node(current_page, node, current_note_id, parent_ids, levels_below_current);
+    render_single_node(
+        current_page,
+        node,
+        current_note_id,
+        parent_ids,
+        levels_below_current,
+    );
     current_page.item_count += 1;
 
     // Process children if any
@@ -147,29 +155,35 @@ fn render_single_node(
     write!(
         page.content,
         r#"<li class="{}" draggable="true" data-note-id="{}">"#,
-        class_str,
-        node.id
-    ).unwrap();
+        class_str, node.id
+    )
+    .unwrap();
 
     let is_parent = parent_ids.contains(&node.id);
     let is_current = current_note_id == Some(node.id);
-    
+
     write!(
         page.content,
         r#"<details{}"#,
         if is_parent || is_current { " open" } else { "" }
-    ).unwrap();
+    )
+    .unwrap();
 
     let title = node.title.as_deref().unwrap_or("Untitled");
-    let summary_class = if Some(node.id) == current_note_id { "font-semibold" } else { "" };
-    
+    let summary_class = if Some(node.id) == current_note_id {
+        "font-semibold"
+    } else {
+        ""
+    };
+
     write!(
         page.content,
         r#"><summary class="{}"><a href="/note/{}">{}</a></summary>"#,
         summary_class,
         node.id,
         html_escape::encode_text(title)
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn render_context_node(
@@ -182,9 +196,9 @@ fn render_context_node(
     write!(
         page.content,
         r#"<li class="{}" draggable="true" data-note-id="{}">"#,
-        class_str,
-        node.id
-    ).unwrap();
+        class_str, node.id
+    )
+    .unwrap();
 
     let is_parent = parent_ids.contains(&node.id);
     write!(
@@ -192,5 +206,6 @@ fn render_context_node(
         r#"<details open><summary><a href="/note/{}">{}</a></summary>"#,
         node.id,
         html_escape::encode_text(node.title.as_deref().unwrap_or("Untitled"))
-    ).unwrap();
+    )
+    .unwrap();
 }
