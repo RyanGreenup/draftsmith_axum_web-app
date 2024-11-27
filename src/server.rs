@@ -1,6 +1,7 @@
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::html_builder::build_note_tree_html;
 use crate::static_files::build_static_routes;
+use crate::template_context::{BodyTemplateContext, NoteTemplateContext, PaginationParams};
 use axum::{
     extract::{Path, Query},
     response::{Html, IntoResponse, Redirect, Response},
@@ -41,115 +42,6 @@ const MAX_ITEMS_PER_PAGE: usize = 50;
                 - body/note/move.html
 */
 
-#[derive(Clone)]
-struct BodyHandler {
-    ctx: minijinja::Value,
-}
-
-impl BodyHandler {
-    async fn new(
-        session: Session,
-        Query(params): Query<PaginationParams>,
-        api_addr: String,
-        id: Option<i32>,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        // Get tree
-        let tree_pages = fetch_note_tree(&api_addr).await?;
-        let tree_html =
-            build_note_tree_html(tree_pages.clone(), id, Vec::new(), MAX_ITEMS_PER_PAGE);
-
-        // Get any Flash
-        let flash = session.take_flash().await.unwrap_or(None);
-
-        // Get sidebar page number from query params if present, otherwise find the page containing the note
-        let current_page = params
-            .page
-            .unwrap_or_else(|| find_page_for_note(&tree_html, id));
-
-        // Store current page in session
-        // TODO don't panic
-        session
-            .insert("current_page", current_page)
-            .await
-            .expect("Unable to store current page");
-
-        Ok(Self {
-            ctx: context!(
-            tree => tree_html,
-            pages => tree_pages,
-            flash => flash,
-            current_page => current_page,
-                ),
-        })
-    }
-}
-
-#[derive(Clone)]
-struct NoteHandler {
-    api_addr: String,
-    ctx: minijinja::Value,
-}
-
-impl NoteHandler {
-    async fn new(
-        session: Session,
-        Query(params): Query<PaginationParams>,
-        api_addr: String,
-        note_id: i32,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        // Get body handler data
-        let body_handler =
-            BodyHandler::new(session, Query(params), api_addr.clone(), Some(note_id)).await?;
-
-        // Get breadcrumbs
-        let breadcrumbs = match get_note_breadcrumbs(&api_addr, note_id).await {
-            Ok(b) => b,
-            Err(e) => {
-                eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
-                Vec::new()
-            }
-        };
-
-        // Get note
-        // TODO currently this fetches the note content even if it's not required.
-        // This could be refactored to reduce requests, however, care needs to be taken to keep
-        // the code simple
-        // May try leptos next and circle back, managing web requests
-        // in an MPA is a bit more tricky than expected.
-        let note = fetch_note(&api_addr, note_id, false).await?;
-
-        let ctx = context! { ..body_handler.ctx, ..context! {
-            note => note,
-            breadcrumbs => breadcrumbs,
-        }};
-
-        Ok(Self {
-            api_addr,
-            ctx,
-        })
-    }
-
-    // TODO use this to set note_content in the template
-    // rather than note.content
-    // that way the code stays simple but it's not fetched for reading
-    #[allow(dead_code)]
-    async fn get_note_with_content(&self, id: i32) -> Result<NoteWithoutFts, NoteError> {
-        fetch_note(&self.api_addr, id, false).await
-    }
-
-    async fn get_rendered_html(
-        &self,
-        id: i32,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        Ok(get_note_rendered_html(&self.api_addr, id).await?)
-    }
-}
-
-#[derive(Deserialize)]
-struct PaginationParams {
-    page: Option<i32>,
-}
-
 static TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates");
 
 static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
@@ -180,20 +72,6 @@ static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     env
 });
 
-// TODO None Path should be 1
-// TODO Better way than using a closure?
-// TODO generalize these to inherit similar to the templates
-fn find_page_for_note(tree_pages: &Vec<String>, note_id: Option<i32>) -> i32 {
-    if let Some(note_id) = note_id {
-        for (index, page) in tree_pages.iter().enumerate() {
-            if page.contains(&format!("data-note-id=\"{}\"", note_id)) {
-                return (index + 1) as i32;
-            }
-        }
-    }
-    1 // Default to first page if note not found
-}
-
 async fn route_note(
     session: Session,
     api_addr: String,
@@ -201,13 +79,14 @@ async fn route_note(
     Query(params): Query<PaginationParams>,
 ) -> Response {
     // Get note data
-    let note_handler = match NoteHandler::new(session.clone(), Query(params), api_addr, id).await {
-        Ok(data) => data,
-        Err(e) => {
-            eprintln!("Failed to get note data: {:#}", e);
-            return handle_not_found(session).await.into_response();
-        }
-    };
+    let note_handler =
+        match NoteTemplateContext::new(session.clone(), Query(params), api_addr, id).await {
+            Ok(data) => data,
+            Err(e) => {
+                eprintln!("Failed to get note data: {:#}", e);
+                return handle_not_found(session).await.into_response();
+            }
+        };
 
     // Get rendered HTML
     let rendered_note = match note_handler.get_rendered_html(id).await {
@@ -242,13 +121,14 @@ async fn route_edit(
     Query(params): Query<PaginationParams>,
 ) -> Response {
     // Get note data
-    let note_handler = match NoteHandler::new(session.clone(), Query(params), api_addr, id).await {
-        Ok(data) => data,
-        Err(e) => {
-            eprintln!("Failed to get note data: {:#}", e);
-            return handle_not_found(session).await.into_response();
-        }
-    };
+    let note_handler =
+        match NoteTemplateContext::new(session.clone(), Query(params), api_addr, id).await {
+            Ok(data) => data,
+            Err(e) => {
+                eprintln!("Failed to get note data: {:#}", e);
+                return handle_not_found(session).await.into_response();
+            }
+        };
 
     // Load template
     let template = ENV
@@ -256,7 +136,9 @@ async fn route_edit(
         .unwrap_or_else(|e| panic!("Failed to load template. Error: {:#}", e));
 
     // Render the template
-    let rendered = template.render(note_handler.ctx).unwrap_or_else(handle_template_error);
+    let rendered = template
+        .render(note_handler.ctx)
+        .unwrap_or_else(handle_template_error);
 
     Html(rendered).into_response()
 }
@@ -326,14 +208,14 @@ async fn route_recent(
     api_addr: String,
 ) -> Html<String> {
     // Get the body data
-    let body_handler = match BodyHandler::new(session, Query(params), api_addr.clone(), None).await
-    {
-        Ok(handler) => handler,
-        Err(e) => {
-            eprintln!("Failed to create body handler: {:#?}", e);
-            return Html(String::from("<h1>Error getting page data</h1>"));
-        }
-    };
+    let body_handler =
+        match BodyTemplateContext::new(session, Query(params), api_addr.clone(), None).await {
+            Ok(handler) => handler,
+            Err(e) => {
+                eprintln!("Failed to create body handler: {:#?}", e);
+                return Html(String::from("<h1>Error getting page data</h1>"));
+            }
+        };
 
     // Get Recent notes
     let metadata_only = true;

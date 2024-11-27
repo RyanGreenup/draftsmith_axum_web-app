@@ -1,7 +1,7 @@
 use draftsmith_rest_api::client::NoteTreeNode;
 use std::fmt::Write;
-use std::sync::OnceLock;
 use std::sync::Mutex;
+use std::sync::OnceLock;
 
 static CURRENT_BREADCRUMBS: OnceLock<Mutex<Vec<i32>>> = OnceLock::new();
 
@@ -17,25 +17,29 @@ pub fn set_breadcrumbs(breadcrumbs: Vec<i32>) {
 
 fn is_parent_of_current(node_id: i32, node: &NoteTreeNode, current_note_id: i32) -> bool {
     // Check direct children
-    if node.children.iter().any(|child| child.id == current_note_id) {
+    if node
+        .children
+        .iter()
+        .any(|child| child.id == current_note_id)
+    {
         return true;
     }
-    
+
     // Recursively check children
     for child in &node.children {
         if is_parent_of_current(node_id, child, current_note_id) {
             return true;
         }
     }
-    
+
     false
 }
 
 pub fn should_be_open(node_id: i32, current_note_id: i32, node: &NoteTreeNode) -> bool {
     if let Ok(crumbs) = get_breadcrumbs().lock() {
-        crumbs.contains(&node_id) || 
-        current_note_id == node_id ||
-        is_parent_of_current(node_id, node, current_note_id)
+        crumbs.contains(&node_id)
+            || current_note_id == node_id
+            || is_parent_of_current(node_id, node, current_note_id)
     } else {
         false // fallback if lock fails
     }
@@ -48,10 +52,7 @@ fn build_details(node_id: i32, current_note_id: Option<i32>, node: &NoteTreeNode
         ""
     };
 
-    format!(
-        r#"<details{}>"#,
-        open_status,
-    )
+    format!(r#"<details{}>"#, open_status,)
 }
 
 pub struct TreePage {
@@ -148,11 +149,7 @@ fn render_node_with_paging(
     ancestry.push(node.clone());
 
     // Render current node
-    render_single_node(
-        current_page,
-        node,
-        current_note_id,
-    );
+    render_single_node(current_page, node, current_note_id);
     current_page.item_count += 1;
 
     // Process children if any
@@ -189,11 +186,7 @@ fn render_node_with_paging(
     ancestry.pop();
 }
 
-fn render_single_node(
-    page: &mut TreePage,
-    node: &NoteTreeNode,
-    current_note_id: Option<i32>,
-) {
+fn render_single_node(page: &mut TreePage, node: &NoteTreeNode, current_note_id: Option<i32>) {
     let class_str = if Some(node.id) == current_note_id {
         r#"note-item bg-blue-100 text-blue-800 rounded-md"#
     } else {
@@ -227,11 +220,7 @@ fn render_single_node(
     .unwrap();
 }
 
-fn render_context_node(
-    page: &mut TreePage,
-    node: &NoteTreeNode,
-    current_note_id: Option<i32>,
-) {
+fn render_context_node(page: &mut TreePage, node: &NoteTreeNode, current_note_id: Option<i32>) {
     let class_str = "note-item opacity-50";
     write!(
         page.content,

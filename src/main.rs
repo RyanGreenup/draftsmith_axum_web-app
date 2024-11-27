@@ -4,6 +4,7 @@ pub mod html_builder;
 pub mod server;
 // TODO this should be a module of server
 mod static_files;
+mod template_context;
 
 /// Simple program to greet a person or serve an API
 #[derive(Parser, Debug)]
