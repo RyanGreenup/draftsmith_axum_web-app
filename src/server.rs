@@ -165,7 +165,7 @@ async fn route_note(
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get note data: {:#}", e);
-            return handle_not_found(session).await.into();
+            return handle_not_found(session).await;
         }
     };
     let breadcrumbs = note_handler.breadcrumbs.clone();
@@ -225,7 +225,7 @@ async fn route_edit(
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get note data: {:#}", e);
-            return handle_not_found(session).await.into();
+            return handle_not_found(session).await;
         }
     };
     let breadcrumbs = note_handler.breadcrumbs.clone();
