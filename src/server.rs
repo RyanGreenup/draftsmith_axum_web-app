@@ -6,6 +6,7 @@ use crate::routes::{
         view::route_note,
     },
     recent::route_recent,
+    search::search,
 };
 use crate::static_files::build_static_routes;
 use crate::template_context::PaginationParams;
@@ -25,15 +26,6 @@ use serde::Deserialize;
 use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
 
 const MAX_ITEMS_PER_PAGE: usize = 50;
-
-// TODO implement search
-async fn search(Query(params): Query<std::collections::HashMap<String, String>>) -> Html<String> {
-    let search_term = params
-        .get("q")
-        .unwrap_or(&String::from("Unable to get Search Term"))
-        .clone();
-    Html(format!("Search term: {}", search_term))
-}
 
 #[derive(Deserialize)]
 struct MoveNoteForm {

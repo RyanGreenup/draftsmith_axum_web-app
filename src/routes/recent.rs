@@ -1,10 +1,9 @@
+use crate::template_context::{BodyTemplateContext, PaginationParams};
+use crate::templates::{handle_template_error, ENV};
 use axum::{extract::Query, response::Html};
 use draftsmith_rest_api::client::notes::fetch_notes;
 use minijinja::context;
 use tower_sessions::Session;
-const MAX_ITEMS_PER_PAGE: usize = 50;
-use crate::template_context::{BodyTemplateContext, PaginationParams};
-use crate::templates::{handle_template_error, ENV};
 
 // TODO implement recent
 pub async fn route_recent(
