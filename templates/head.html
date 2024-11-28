@@ -35,3 +35,20 @@
   // Add debug logging
   console.log("Stimulus initialized with TreeController")
 </script>
+
+
+<style>
+    /* Prevent drawer flash on page load */
+    .drawer-side {
+        display: none;
+    }
+    .drawer-toggle:checked ~ .drawer-side {
+        display: grid;
+    }
+    /* Keep left sidebar visible on large screens */
+    @media (min-width: 1024px) {  /* lg breakpoint */
+        .lg\:drawer-open > .drawer-side {
+            display: grid;
+        }
+    }
+</style>

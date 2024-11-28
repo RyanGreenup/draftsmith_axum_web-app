@@ -4,7 +4,7 @@
     <main>
       <div class="drawer lg:drawer-open">
         <input id="pages-drawer" type="checkbox" class="drawer-toggle" />
-        <div class="drawer-content flex flex-col items-center justify-start">
+        <div class="drawer-content">
           {% include 'breadcrumbs/breadcrumbs.html' %}
 
           {% include 'flash.html' %}
@@ -21,16 +21,13 @@
             aria-label="close sidebar"
             class="drawer-overlay"
           ></label>
-          <ul class="menu bg-base-200 text-base-content min-h-full w-80 p-4">
+          <div class="menu bg-base-200 text-base-content min-h-full w-80 p-4">
             <!-- Sidebar content here -->
-            <div class="menu bg-base-200 text-base-content min-h-full w-80 p-4">
-              <!-- Sidebar content here -->
-              {% if tree is defined %}
-                  {% include 'body/pagination.html' %}
-                  {{ tree[current_page - 1] | safe }}
-              {% endif %}
-            </div>
-          </ul>
+            {% if tree is defined %}
+                {% include 'body/pagination.html' %}
+                {{ tree[current_page - 1] | safe }}
+            {% endif %}
+          </div>
         </div>
       </div>
 
