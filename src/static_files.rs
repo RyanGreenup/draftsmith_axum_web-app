@@ -96,7 +96,6 @@ async fn get_static_katex_fonts(Path(path): Path<String>) -> impl IntoResponse {
 }
 
 async fn get_static_file(dir: &Dir<'_>, path: String) -> impl IntoResponse {
-    // Try to get the file from the directory
     if let Some(file) = dir.get_file(&path) {
         let content_type = determine_content_type(file.path());
         let contents = file.contents();
@@ -115,7 +114,7 @@ async fn get_static_file(dir: &Dir<'_>, path: String) -> impl IntoResponse {
                 [
                     (CONTENT_TYPE, content_type),
                     (CACHE_CONTROL, "public, max-age=604800, immutable".to_string()),
-                    ("Content-Encoding", "gzip".to_string()),
+                    (header::CONTENT_ENCODING, "gzip".to_string()),
                 ],
                 compressed,
             );
@@ -126,6 +125,7 @@ async fn get_static_file(dir: &Dir<'_>, path: String) -> impl IntoResponse {
             [
                 (CONTENT_TYPE, content_type),
                 (CACHE_CONTROL, "public, max-age=604800, immutable".to_string()),
+                (CONTENT_TYPE, "".to_string()), // Added to match array size
             ],
             contents.to_vec(),
         );
@@ -134,7 +134,11 @@ async fn get_static_file(dir: &Dir<'_>, path: String) -> impl IntoResponse {
     // Return 404 if the file is not found
     (
         StatusCode::NOT_FOUND,
-        [(CONTENT_TYPE, String::from("text/plain"))],
+        [
+            (CONTENT_TYPE, "text/plain".to_string()),
+            (CACHE_CONTROL, "no-store".to_string()),
+            (CONTENT_TYPE, "".to_string()), // Added to match array size
+        ],
         NOT_FOUND_RESPONSE.to_vec(),
     )
 }
