@@ -1,11 +1,14 @@
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::html_builder::build_note_tree_html;
-use crate::routes::notes::{
-    edit::{route_edit, route_update_note},
-    view::route_note,
+use crate::routes::{
+    notes::{
+        edit::{route_edit, route_update_note},
+        view::route_note,
+    },
+    recent::route_recent,
 };
 use crate::static_files::build_static_routes;
-use crate::template_context::{BodyTemplateContext, PaginationParams};
+use crate::template_context::PaginationParams;
 use crate::templates::{handle_template_error, ENV};
 use axum::{
     extract::{Path, Query},
@@ -15,7 +18,7 @@ use axum::{
 };
 use draftsmith_rest_api::client::{
     attach_child_note, detach_child_note, fetch_note_tree, get_note_breadcrumbs,
-    notes::fetch_notes, AttachChildRequest, NoteBreadcrumb, UpdateNoteRequest,
+    AttachChildRequest, NoteBreadcrumb, UpdateNoteRequest,
 };
 use minijinja::context;
 use serde::Deserialize;
@@ -30,52 +33,6 @@ async fn search(Query(params): Query<std::collections::HashMap<String, String>>)
         .unwrap_or(&String::from("Unable to get Search Term"))
         .clone();
     Html(format!("Search term: {}", search_term))
-}
-
-// TODO implement recent
-async fn route_recent(
-    session: Session,
-    Query(params): Query<PaginationParams>,
-    api_addr: String,
-) -> Html<String> {
-    // Get the body data
-    let body_handler =
-        match BodyTemplateContext::new(session, Query(params), api_addr.clone(), None).await {
-            Ok(handler) => handler,
-            Err(e) => {
-                eprintln!("Failed to create body handler: {:#?}", e);
-                return Html(String::from("<h1>Error getting page data</h1>"));
-            }
-        };
-
-    // Get Recent notes
-    let metadata_only = true;
-    let mut notes = match fetch_notes(&api_addr, metadata_only).await {
-        Ok(notes) => notes,
-        Err(e) => {
-            eprintln!("Failed to fetch notes: {:#?}", e);
-            return Html(String::from("<h1>Error fetching notes</h1>"));
-        }
-    };
-
-    // Sort notes by updated_at
-    notes.sort_by(|a, b| a.modified_at.cmp(&b.modified_at));
-
-    // Include only the last 50 notes
-    let recent_notes = notes.iter().rev().take(50).collect::<Vec<_>>();
-
-    let template = ENV.get_template("body/recent.html").unwrap_or_else(|e| {
-        panic!("Failed to load template. Error: {:#}", e);
-    });
-
-    // get the context vars
-    let ctx = context! { ..body_handler.ctx, ..context! {
-        recent_notes => recent_notes,
-    }};
-
-    let rendered = template.render(ctx).unwrap_or_else(handle_template_error);
-
-    Html(rendered)
 }
 
 #[derive(Deserialize)]
