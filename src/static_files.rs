@@ -1,6 +1,14 @@
 use crate::state::AppState;
 use axum::http::StatusCode;
-use axum::{extract::Path, http::header, response::IntoResponse, routing::get, Router};
+use axum::{
+    extract::Path,
+    http::header::{self, CACHE_CONTROL, CONTENT_TYPE},
+    response::IntoResponse,
+    routing::get,
+    Router,
+};
+use async_compression::tokio::bufread::GzipEncoder;
+use tokio::io::AsyncReadExt;
 use include_dir::{include_dir, Dir};
 
 // Specify the directory you want to include
@@ -91,17 +99,42 @@ async fn get_static_file(dir: &Dir<'_>, path: String) -> impl IntoResponse {
     // Try to get the file from the directory
     if let Some(file) = dir.get_file(&path) {
         let content_type = determine_content_type(file.path());
+        let contents = file.contents();
+        
+        // In a real implementation, you would check the Accept-Encoding header
+        let accepts_gzip = true;
+        
+        if accepts_gzip {
+            // Compress the contents
+            let mut encoder = GzipEncoder::new(&contents[..]);
+            let mut compressed = Vec::new();
+            encoder.read_to_end(&mut compressed).await.unwrap();
+            
+            return (
+                StatusCode::OK,
+                [
+                    (CONTENT_TYPE, content_type),
+                    (CACHE_CONTROL, "public, max-age=604800, immutable".to_string()),
+                    ("Content-Encoding", "gzip".to_string()),
+                ],
+                compressed,
+            );
+        }
+        
         return (
             StatusCode::OK,
-            [(header::CONTENT_TYPE, content_type)],
-            file.contents().to_vec(),
+            [
+                (CONTENT_TYPE, content_type),
+                (CACHE_CONTROL, "public, max-age=604800, immutable".to_string()),
+            ],
+            contents.to_vec(),
         );
     }
 
     // Return 404 if the file is not found
     (
         StatusCode::NOT_FOUND,
-        [(header::CONTENT_TYPE, String::from("text/plain"))],
+        [(CONTENT_TYPE, String::from("text/plain"))],
         NOT_FOUND_RESPONSE.to_vec(),
     )
 }

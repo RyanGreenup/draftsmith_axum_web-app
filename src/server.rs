@@ -15,6 +15,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use tower_http::compression::CompressionLayer;
 use tower_sessions::{MemoryStore, SessionManagerLayer};
 
 #[tokio::main]
@@ -53,6 +54,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             get(route_move_note_get).post(route_move_note_post),
         )
         .route("/note/:id/detach", post(route_detach_note_post))
+        .layer(CompressionLayer::new())
         .with_state(state)
         .layer(session_layer);
 
