@@ -106,20 +106,3 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .await
         .unwrap_or_else(|e| panic!("Unable to serve application. Error: {:#}", e));
 }
-
-/*
-{
-    "/note":
-        {
-            "function": "route_note",
-            "template": "body/note/read.html",
-            "http_method": ["GET"],
-        },
-    "/edit":
-        {
-            "function": "route_edit",
-            "template": "body/note/edit.html",
-            "http_method": ["GET", "POST"]
-        },
-}
-*/
