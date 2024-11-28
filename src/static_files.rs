@@ -2,7 +2,7 @@ use crate::state::AppState;
 use axum::http::StatusCode;
 use axum::{
     extract::Path,
-    http::header::{self, CACHE_CONTROL, CONTENT_TYPE},
+    http::header::{self, HeaderName, CACHE_CONTROL, CONTENT_TYPE},
     response::IntoResponse,
     routing::get,
     Router,
