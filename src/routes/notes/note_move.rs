@@ -1,11 +1,7 @@
 use crate::html_builder::build_note_tree_html;
 use crate::templates::{handle_template_error, ENV};
-use axum::{
-    extract::{Path, State},
-    response::{Html, Redirect},
-    Form,
-};
 use serde::Deserialize;
+use crate::template_context::{NoteTemplateContext, PaginationParams};
 
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::state::AppState;
@@ -16,46 +12,42 @@ use draftsmith_rest_api::client::{
 };
 use minijinja::context;
 use tower_sessions::Session;
+use crate::templates::handle_not_found;
+use axum::{
+    extract::{Path, Query, State},
+    response::{Html, IntoResponse, Response, Redirect},
+    Form,
+};
 
 pub async fn route_move_note_get(
+    session: Session,
     State(state): State<AppState>,
     Path(note_id): Path<i32>,
-) -> Html<String> {
-    let template = ENV.get_template("body/note/move.html").unwrap();
+    Query(params): Query<PaginationParams>,
+) -> Response {
     let api_addr: String = state.api_addr.clone();
 
-    // Get the breadcrumbs
-    let breadcrumbs: Option<Vec<NoteBreadcrumb>> =
-        match get_note_breadcrumbs(&api_addr, note_id).await {
-            Ok(b) => Some(b),
+    // Get note data
+    let note_handler =
+        match NoteTemplateContext::new(session.clone(), Query(params), api_addr, note_id).await {
+            Ok(data) => data,
             Err(e) => {
-                eprintln!("Failed to get Note Breadcrumbs: {:#?}", e);
-                None
+                eprintln!("Failed to get note data: {:#}", e);
+                return handle_not_found(session).await.into_response();
             }
         };
 
-    // Get the Tree
-    let tree = fetch_note_tree(&api_addr).await.unwrap_or_else(|e| {
-        // TODO don't panic!
-        panic!("Failed to fetch note tree. Error: {:#}", e);
+
+    // Load and render template
+    let template = ENV.get_template("body/note/move.html").unwrap_or_else(|e| {
+        panic!("Failed to load template. Error: {:#}", e);
     });
-    let tree = build_note_tree_html(
-        tree,
-        Some(note_id),
-        breadcrumbs
-            .as_ref()
-            .map_or_else(Vec::new, |b| b.iter().map(|bc| bc.id).collect()),
-        MAX_ITEMS_PER_PAGE, // max items per page
-    );
 
     let rendered = template
-        .render(context!(
-            note_id => note_id,
-            tree => tree,
-        ))
+        .render(note_handler.ctx)
         .unwrap_or_else(handle_template_error);
 
-    Html(rendered)
+    Html(rendered).into_response()
 }
 
 pub async fn route_detach_note_post(
@@ -92,7 +84,6 @@ pub async fn route_move_note_post(
     let api_addr: String = state.api_addr.clone();
 
     // Get the breadcrumbs to check for parents
-
     let breadcrumbs: Option<Vec<NoteBreadcrumb>> =
         match get_note_breadcrumbs(&api_addr, note_id).await {
             Ok(b) => Some(b),

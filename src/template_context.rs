@@ -16,7 +16,7 @@ pub struct PaginationParams {
     pub page: Option<i32>,
 }
 
-fn find_page_for_note(tree_pages: &Vec<String>, note_id: Option<i32>) -> i32 {
+fn find_page_for_note(tree_pages: &[String], note_id: Option<i32>) -> i32 {
     if let Some(note_id) = note_id {
         for (index, page) in tree_pages.iter().enumerate() {
             if page.contains(&format!("data-note-id=\"{}\"", note_id)) {

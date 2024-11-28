@@ -38,7 +38,6 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
 
     // Set up Routes
     let app = Router::<AppState>::new()
-        .route("/note/:id", get(route_note))
         .route(
             "/",
             get(|session, query, state: State<AppState>| {
@@ -49,6 +48,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .nest("/static", build_static_routes())
         .route("/search", get(search))
         .route("/recent", get(route_recent))
+        .route("/note/:id", get(route_note))
         .route(
             "/note/:id/move",
             get(route_move_note_get).post(route_move_note_post),

@@ -9,7 +9,7 @@ mod static_files;
 mod template_context;
 mod templates;
 
-pub const MAX_ITEMS_PER_PAGE: usize = 50;
+pub const MAX_ITEMS_PER_PAGE: usize = 2000;
 
 /// Simple program to greet a person or serve an API
 #[derive(Parser, Debug)]
