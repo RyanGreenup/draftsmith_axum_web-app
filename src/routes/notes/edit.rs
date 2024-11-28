@@ -6,17 +6,22 @@ use axum::{
 };
 
 use crate::flash::{FlashMessage, FlashMessageStore};
+use crate::state::AppState;
 use crate::templates::{handle_not_found, handle_template_error, ENV};
-use axum::response::{IntoResponse, Response};
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
+};
 use draftsmith_rest_api::client::{update_note, UpdateNoteRequest};
 use tower_sessions::Session;
 
 pub async fn route_edit(
     session: Session,
-    api_addr: String,
+    State(state): State<AppState>,
     Path(id): Path<i32>,
     Query(params): Query<PaginationParams>,
 ) -> Response {
+    let api_addr: String = state.api_addr.clone();
     // Get note data
     let note_handler =
         match NoteTemplateContext::new(session.clone(), Query(params), api_addr, id).await {
@@ -42,11 +47,13 @@ pub async fn route_edit(
 
 pub async fn route_update_note(
     session: Session,
-    api_addr: String,
+    State(state): State<AppState>,
     Path(path): Path<i32>,
     Form(note): Form<UpdateNoteRequest>,
 ) -> Redirect {
     let id = path;
+
+    let api_addr: String = state.api_addr.clone();
 
     match update_note(&api_addr, id, note).await {
         Ok(_) => {

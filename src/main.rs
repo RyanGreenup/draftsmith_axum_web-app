@@ -2,6 +2,7 @@ use clap::Parser;
 pub mod flash;
 pub mod html_builder;
 pub mod server;
+pub mod state;
 // TODO this should be a module of server
 mod routes;
 mod static_files;

@@ -1,13 +1,14 @@
 use crate::html_builder::build_note_tree_html;
 use crate::templates::{handle_template_error, ENV};
 use axum::{
-    extract::Path,
+    extract::{Path, State},
     response::{Html, Redirect},
     Form,
 };
 use serde::Deserialize;
 
 use crate::flash::{FlashMessage, FlashMessageStore};
+use crate::state::AppState;
 use crate::MAX_ITEMS_PER_PAGE;
 use draftsmith_rest_api::client::{
     attach_child_note, detach_child_note, fetch_note_tree, get_note_breadcrumbs,
@@ -15,8 +16,13 @@ use draftsmith_rest_api::client::{
 };
 use minijinja::context;
 use tower_sessions::Session;
-pub async fn route_move_note_get(api_addr: String, Path(note_id): Path<i32>) -> Html<String> {
+
+pub async fn route_move_note_get(
+    State(state): State<AppState>,
+    Path(note_id): Path<i32>,
+) -> Html<String> {
     let template = ENV.get_template("body/note/move.html").unwrap();
+    let api_addr: String = state.api_addr.clone();
 
     // Get the breadcrumbs
     let breadcrumbs: Option<Vec<NoteBreadcrumb>> =
@@ -54,9 +60,11 @@ pub async fn route_move_note_get(api_addr: String, Path(note_id): Path<i32>) -> 
 
 pub async fn route_detach_note_post(
     session: Session,
-    api_addr: String,
+    State(state): State<AppState>,
     Path(note_id): Path<i32>,
 ) -> Redirect {
+    let api_addr: String = state.api_addr.clone();
+
     match detach_child_note(&api_addr, note_id).await {
         Ok(_) => {
             session
@@ -77,11 +85,14 @@ pub async fn route_detach_note_post(
 
 pub async fn route_move_note_post(
     session: Session,
-    api_addr: String,
+    State(state): State<AppState>,
     Path(note_id): Path<i32>,
     Form(form): Form<MoveNoteForm>,
 ) -> Redirect {
+    let api_addr: String = state.api_addr.clone();
+
     // Get the breadcrumbs to check for parents
+
     let breadcrumbs: Option<Vec<NoteBreadcrumb>> =
         match get_note_breadcrumbs(&api_addr, note_id).await {
             Ok(b) => Some(b),

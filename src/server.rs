@@ -1,23 +1,21 @@
 use crate::routes::{
     notes::{
         edit::{route_edit, route_update_note},
-        note_move::{
-            route_detach_note_post, route_move_note_get, route_move_note_post, MoveNoteForm,
-        },
+        note_move::{route_detach_note_post, route_move_note_get, route_move_note_post},
         view::route_note,
     },
     recent::route_recent,
     search::search,
 };
+use crate::state::AppState;
 use crate::static_files::build_static_routes;
-use crate::template_context::PaginationParams;
+use axum::extract::State;
 use axum::{
-    extract::{Path, Query},
+    extract::Path,
     routing::{get, post},
-    Form, Router,
+    Router,
 };
-use draftsmith_rest_api::client::UpdateNoteRequest;
-use tower_sessions::{MemoryStore, Session, SessionManagerLayer};
+use tower_sessions::{MemoryStore, SessionManagerLayer};
 
 #[tokio::main]
 pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str, port: &str) {
@@ -32,73 +30,30 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store).with_secure(false);
 
+    // Create shared state
+    let state = AppState {
+        api_addr: api_addr.clone(),
+    };
+
     // Set up Routes
-    let app = Router::new()
-        .route(
-            "/note/:id",
-            get({
-                let api_addr = api_addr.clone();
-                move |session: Session, Path(id): Path<i32>, query: Query<PaginationParams>| async move {
-                    route_note(session, api_addr.clone(), Path(id), query).await
-                }
-            }),
-        )
+    let app = Router::<AppState>::new()
+        .route("/note/:id", get(route_note))
         .route(
             "/",
-            get({
-                let api_addr = api_addr.clone();
-                move |session: Session, query: Query<PaginationParams>| async move {
-                    route_note(session, api_addr.clone(), Path(1), query).await
-                }
+            get(|session, query, state: State<AppState>| {
+                route_note(session, state, Path(1), query)
             }),
         )
-        .route(
-            "/edit/:id",
-            get({
-                let api_addr = api_addr.clone();
-                move |session: Session, Path(id): Path<i32>, query: Query<PaginationParams>| async move {
-                    route_edit(session, api_addr.clone(), Path(id), query).await
-                }
-            })
-            .post({
-                let api_addr = api_addr.clone();
-                move |session: Session, Path(id): Path<i32>, form: Form<UpdateNoteRequest>| async move {
-                    route_update_note(session, api_addr.clone(), Path(id), form).await
-                }
-            }),
-        )
+        .route("/edit/:id", get(route_edit).post(route_update_note))
         .nest("/static", build_static_routes())
         .route("/search", get(search))
-        .route("/recent", get({
-            let api_addr = api_addr.clone();
-            move |session: Session, query: Query<PaginationParams>| async move {
-                route_recent(session, query, api_addr.clone()).await
-            }
-        }))
+        .route("/recent", get(route_recent))
         .route(
             "/note/:id/move",
-            get({
-                let api_addr = api_addr.clone();
-                move |Path(id): Path<i32>| async move {
-                    route_move_note_get(api_addr.clone(), Path(id)).await
-                }
-            })
-            .post({
-                let api_addr = api_addr.clone();
-                move |session: Session, Path(id): Path<i32>, form: Form<MoveNoteForm>| async move {
-                    route_move_note_post(session, api_addr.clone(), Path(id), form).await
-                }
-            }),
+            get(route_move_note_get).post(route_move_note_post),
         )
-        .route(
-            "/note/:id/detach",
-            post({
-                let api_addr = api_addr.clone();
-                move |session: Session, Path(id): Path<i32>| async move {
-                    route_detach_note_post(session, api_addr.clone(), Path(id)).await
-                }
-            }),
-        )
+        .route("/note/:id/detach", post(route_detach_note_post))
+        .with_state(state)
         .layer(session_layer);
 
     // Do it!

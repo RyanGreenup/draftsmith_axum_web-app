@@ -1,6 +1,10 @@
+use crate::state::AppState;
 use crate::template_context::{BodyTemplateContext, PaginationParams};
 use crate::templates::{handle_template_error, ENV};
-use axum::{extract::Query, response::Html};
+use axum::{
+    extract::{Query, State},
+    response::Html,
+};
 use draftsmith_rest_api::client::notes::fetch_notes;
 use minijinja::context;
 use tower_sessions::Session;
@@ -8,9 +12,10 @@ use tower_sessions::Session;
 // TODO implement recent
 pub async fn route_recent(
     session: Session,
+    State(state): State<AppState>,
     Query(params): Query<PaginationParams>,
-    api_addr: String,
 ) -> Html<String> {
+    let api_addr: String = state.api_addr.clone();
     // Get the body data
     let body_handler =
         match BodyTemplateContext::new(session, Query(params), api_addr.clone(), None).await {

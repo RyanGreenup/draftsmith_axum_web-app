@@ -1,3 +1,4 @@
+use crate::state::AppState;
 use axum::http::StatusCode;
 use axum::{extract::Path, http::header, response::IntoResponse, routing::get, Router};
 use include_dir::{include_dir, Dir};
@@ -20,7 +21,7 @@ const NOT_FOUND_RESPONSE: &[u8] = b"Not Found";
 //     String::from_utf8_lossy(admonitions.contents())
 // );
 
-pub fn build_static_routes() -> Router {
+pub fn build_static_routes() -> Router<AppState> {
     Router::new()
         .route("/katex/dist/:path", get(get_static_katex_files))
         .route("/katex/dist/fonts/:path", get(get_static_katex_fonts))

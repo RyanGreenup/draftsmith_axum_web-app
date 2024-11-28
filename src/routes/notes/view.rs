@@ -1,7 +1,8 @@
+use crate::state::AppState;
 use crate::template_context::{NoteTemplateContext, PaginationParams};
 use crate::templates::{handle_not_found, handle_template_error, ENV};
 use axum::{
-    extract::{Path, Query},
+    extract::{Path, Query, State},
     response::{Html, IntoResponse, Response},
 };
 use minijinja::context;
@@ -9,10 +10,11 @@ use tower_sessions::Session;
 
 pub async fn route_note(
     session: Session,
-    api_addr: String,
+    State(state): State<AppState>,
     Path(id): Path<i32>,
     Query(params): Query<PaginationParams>,
 ) -> Response {
+    let api_addr: String = state.api_addr.clone();
     // Get note data
     let note_handler =
         match NoteTemplateContext::new(session.clone(), Query(params), api_addr, id).await {
