@@ -29,7 +29,7 @@
           {{ link_item("/recent", "Recent") }}
           {% if note %}
           {{ link_item("/note/" ~ note.id ~ "/move", "Move") }}
-          {{ link_item("/manage_tags/" ~ note.id, "Manage Tags") }}
+          {{ link_item("/manage_tags", "Manage Tags") }}
           <li>
             <form
               action="/note/{note.id}/delete"

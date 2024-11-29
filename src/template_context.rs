@@ -2,7 +2,7 @@ use crate::flash::FlashMessageStore;
 use crate::html_builder::build_note_tree_html;
 use crate::MAX_ITEMS_PER_PAGE;
 use axum::extract::Query;
-use draftsmith_rest_api::client::tags::{list_note_tags, get_tag};
+use draftsmith_rest_api::client::tags::{list_note_tags, get_tag, get_tag_tree, update_tag, UpdateTagRequest, TagTreeNode};
 use draftsmith_rest_api::client::notes::{NoteWithoutFts, get_backlinks, get_forward_links};
 use draftsmith_rest_api::client::{
     fetch_note, fetch_note_tree, get_note_breadcrumbs,
