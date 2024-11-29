@@ -4,7 +4,7 @@ use axum::{
     Form,
 };
 use tower_sessions::Session;
-use draftsmith_rest_api::client::tags::{update_tag, UpdateTagRequest, attach_child_tag, detach_child_tag};
+use draftsmith_rest_api::client::tags::{update_tag, UpdateTagRequest, attach_child_tag, detach_child_tag, get_tag_tree, TagTreeNode};
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::state::AppState;
 use serde::Deserialize;
