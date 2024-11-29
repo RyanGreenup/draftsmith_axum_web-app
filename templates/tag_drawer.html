@@ -1,3 +1,32 @@
+{% macro render_tag_tree(nodes) %}
+  {% for node in nodes %}
+    <li>
+      <details class="collapse">
+        <summary class="collapse-title text-sm p-2 hover:bg-base-300 rounded-lg">
+          <div class="flex items-center gap-2">
+            {% if node.children %}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            {% endif %}
+            {{ node.name }}
+            {% if node.notes %}
+              <span class="badge badge-sm">{{ node.notes | length }}</span>
+            {% endif %}
+          </div>
+        </summary>
+        {% if node.children %}
+          <div class="collapse-content">
+            <ul class="menu menu-sm">
+              {{ render_tag_tree(node.children) }}
+            </ul>
+          </div>
+        {% endif %}
+      </details>
+    </li>
+  {% endfor %}
+{% endmacro %}
+
 <div class="drawer drawer-end">
   <input id="tag-drawer" type="checkbox" class="drawer-toggle" />
   <div class="drawer-side">
@@ -9,14 +38,18 @@
     <div class="menu bg-base-200 text-base-content min-h-full w-80 p-4">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold">Tags</h2>
-        <a href="/manage_all_tags" class="btn btn-sm">Manage Tags</a>
+        <a href="/manage_tags" class="btn btn-sm">Manage Tags</a>
       </div>
 
       <div class="divider"></div>
 
       <div class="overflow-y-auto">
-        <ul class="menu bg-base-200 rounded-box w-full md:w-56">
-          {# TODO Include tag hierarchy tree here #}
+        <ul class="menu bg-base-200 rounded-box w-full">
+          {% if tag_tree %}
+            {{ render_tag_tree(tag_tree) }}
+          {% else %}
+            <li class="text-sm text-base-content/50 p-2">No tags available</li>
+          {% endif %}
         </ul>
       </div>
     </div>
