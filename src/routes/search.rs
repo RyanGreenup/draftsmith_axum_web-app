@@ -5,7 +5,7 @@ use axum::{
     extract::{Query, State},
     response::Html,
 };
-use draftsmith_rest_api::client::notes::{fetch_notes, fts_search_notes};
+use draftsmith_rest_api::client::notes::{fetch_notes, fts_search_notes, get_note_rendered_html};
 use minijinja::context;
 use tower_sessions::Session;
 use serde::Deserialize;
@@ -23,12 +23,12 @@ pub async fn search(
     Query(params): Query<SearchParams>,
 ) -> Html<String> {
     let api_addr: String = state.api_addr.clone();
-    
+
     // Get the body data
     let body_handler = match BodyTemplateContext::new(
-        session, 
-        Query(params.pagination), 
-        api_addr.clone(), 
+        session,
+        Query(params.pagination),
+        api_addr.clone(),
         None
     ).await {
         Ok(handler) => handler,
@@ -59,20 +59,23 @@ pub async fn search(
         }
     };
 
-    // Sort notes by updated_at
-    let mut sorted_notes = notes;
-    sorted_notes.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
-
     // Include only the last 50 notes
-    let recent_notes = sorted_notes.iter().take(50).collect::<Vec<_>>();
+    let mut recent_notes = notes.iter().take(50).collect::<Vec<_>>();
 
-    let template = ENV.get_template("body/recent.html").unwrap_or_else(|e| {
+    // Render the markdown
+
+    for note in recent_notes.iter_mut() {
+        note.content = get_note_rendered_html(&api_addr, note.id).await.unwrap_or(note.content.clone());
+    }
+
+
+    let template = ENV.get_template("body/search_results.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
     });
 
     // get the context vars
-    let ctx = context! { 
-        ..body_handler.ctx, 
+    let ctx = context! {
+        ..body_handler.ctx,
         ..context! {
             recent_notes => recent_notes,
             search_term => params.q.unwrap_or_default(),
