@@ -33,7 +33,9 @@
         {# TODO Create Filter function for dates #}
         <td>
             <div class="overflow-auto max-h-48 p-2 border rounded-lg shadow bg-white">
-                {{ note.content | safe }}
+                <pre lang="markdown" ><code>
+                {{ note.content }}
+                </code></pre>
             </div>
         </td>
         <td>{{ note.created_at }}</td>

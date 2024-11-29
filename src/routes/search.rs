@@ -7,14 +7,14 @@ use axum::{
 };
 use draftsmith_rest_api::client::notes::{fetch_notes, fts_search_notes, get_note_rendered_html};
 use minijinja::context;
-use tower_sessions::Session;
 use serde::Deserialize;
+use tower_sessions::Session;
 
 #[derive(Debug, Deserialize)]
 pub struct SearchParams {
     #[serde(flatten)]
     pagination: PaginationParams,
-    q: Option<String>,  // Search query parameter
+    q: Option<String>, // Search query parameter
 }
 
 pub async fn search(
@@ -25,18 +25,16 @@ pub async fn search(
     let api_addr: String = state.api_addr.clone();
 
     // Get the body data
-    let body_handler = match BodyTemplateContext::new(
-        session,
-        Query(params.pagination),
-        api_addr.clone(),
-        None
-    ).await {
-        Ok(handler) => handler,
-        Err(e) => {
-            eprintln!("Failed to create body handler: {:#?}", e);
-            return Html(String::from("<h1>Error getting page data</h1>"));
-        }
-    };
+    let body_handler =
+        match BodyTemplateContext::new(session, Query(params.pagination), api_addr.clone(), None)
+            .await
+        {
+            Ok(handler) => handler,
+            Err(e) => {
+                eprintln!("Failed to create body handler: {:#?}", e);
+                return Html(String::from("<h1>Error getting page data</h1>"));
+            }
+        };
 
     // Get notes based on whether we have a search term
     let notes = if let Some(ref search_term) = params.q {
@@ -62,15 +60,26 @@ pub async fn search(
     // Include only the last 50 notes
     let mut recent_notes = notes.into_iter().take(50).collect::<Vec<_>>();
 
-    // Render the markdown
-    for note in &mut recent_notes {
-        note.content = get_note_rendered_html(&api_addr, note.id).await.unwrap_or(note.content.clone());
-    }
+    // // Render the markdown
+    // I decided against this because the markdown rendering is slow and
+    // any js in there becomes a security risk / chaos with so many
+    // pages being rendered at once
+    // for note in &mut recent_notes {
+    //     // Sanitize the content (nested javascript becomes a nightmare here)
+    //     note.content = note.content.replace("<script>", "&lt;script&gt;");
+    //     note.content = note.content.replace("</script>", "&lt;/script&gt;");
+    //
+    //     // Render it
+    //     note.content = get_note_rendered_html(&api_addr, note.id)
+    //         .await
+    //         .unwrap_or(note.content.clone());
+    // }
 
-
-    let template = ENV.get_template("body/search_results.html").unwrap_or_else(|e| {
-        panic!("Failed to load template. Error: {:#}", e);
-    });
+    let template = ENV
+        .get_template("body/search_results.html")
+        .unwrap_or_else(|e| {
+            panic!("Failed to load template. Error: {:#}", e);
+        });
 
     // get the context vars
     let ctx = context! {
