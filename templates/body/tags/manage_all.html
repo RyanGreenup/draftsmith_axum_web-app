@@ -8,7 +8,7 @@
       <h2 class="card-title">Create New Tag</h2>
       <form
         method="POST"
-        action="{# url_for('create_tag') #}"
+        action="/create_tag"
         class="flex gap-4"
       >
         {% include 'csrf_token.html' %}
@@ -43,7 +43,7 @@
               <td>
                 <form
                   method="POST"
-                  action="{# url_for('rename_tag', tag_id=tag.id) #}"
+                  action="/rename_tag/{{ tag.id }}"
                   class="flex gap-2"
                 >
                   {% include 'csrf_token.html' %}
@@ -58,7 +58,8 @@
               </td>
               <td>
                 <a
-                  href="{# url_for('tag_detail', tag_id=tag.id) #}"
+                  {# Tag Detail Page, lists all tags #}
+                  href="/tags/{{ tag.id }}"
                   class="btn btn-sm btn-info"
                   >View</a
                 >
@@ -66,7 +67,7 @@
               <td>
                 <form
                   method="POST"
-                  action="{# url_for('delete_tag', tag_id=tag.id) #}"
+                  action="/delete_tag/{{ tag.id }}"
                   class="inline"
                   onsubmit="return confirm('Are you sure you want to delete this tag? This action cannot be undone.');"
                 >
