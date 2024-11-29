@@ -3,6 +3,7 @@ use crate::routes::{
         edit::{route_edit, route_update_note},
         note_move::{route_detach_note_post, route_move_note_get, route_move_note_post},
         view::route_note,
+        delete::route_delete,
     },
     recent::route_recent,
     search::search,
@@ -49,6 +50,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/search", get(search))
         .route("/recent", get(route_recent))
         .route("/note/:id", get(route_note))
+        .route("/note/:id/delete", get(route_delete))
         .route(
             "/note/:id/move",
             get(route_move_note_get).post(route_move_note_post),

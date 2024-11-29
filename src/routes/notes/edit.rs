@@ -12,7 +12,7 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
-use draftsmith_rest_api::client::{update_note, UpdateNoteRequest};
+use draftsmith_rest_api::client::{update_note, UpdateNoteRequest, delete_note};
 use tower_sessions::Session;
 
 pub async fn route_edit(
