@@ -50,7 +50,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/search", get(search))
         .route("/recent", get(route_recent))
         .route("/note/:id", get(route_note))
-        .route("/note/:id/delete", get(route_delete))
+        .route("/note/:id/delete", post(route_delete))
         .route(
             "/note/:id/move",
             get(route_move_note_get).post(route_move_note_post),
