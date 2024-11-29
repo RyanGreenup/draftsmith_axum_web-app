@@ -9,6 +9,7 @@ use tower_sessions::Session;
 
 #[derive(Debug, Default, serde::Deserialize)]
 pub struct CreateNoteParams {
+    #[serde(default)]
     as_sibling: bool,
 }
 
