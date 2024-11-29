@@ -20,10 +20,12 @@
         >
           {% if note %}
           {{ link_item("/edit/" ~ note.id, "Edit") }}
+          {{ link_item("/create", "Create") }}
+          {# NOTE this page will be a child of the current #}
           {{ link_item("/create/" ~ note.id, "New Subpage") }}
+          {# TODO New Sibling which is a new page with the same parent as the current #}
           {{ link_item("/manage_tags/" ~ note.id, "Assign Tags") }}
           {% endif %}
-          {{ link_item("/create", "Create") }}
           {{ link_item("/recent", "Recent") }}
           {% if note %}
           {{ link_item("/note/" ~ note.id ~ "/move", "Move") }}
