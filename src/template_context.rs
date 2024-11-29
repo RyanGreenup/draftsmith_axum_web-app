@@ -11,7 +11,7 @@ use minijinja::context;
 use serde::Deserialize;
 use tower_sessions::Session;
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct PaginationParams {
     pub page: Option<i32>,
 }

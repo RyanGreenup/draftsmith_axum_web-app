@@ -39,8 +39,8 @@ pub async fn search(
     };
 
     // Get notes based on whether we have a search term
-    let notes = if let Some(search_term) = params.q {
-        match fts_search_notes(&api_addr, &search_term).await {
+    let notes = if let Some(ref search_term) = params.q {
+        match fts_search_notes(&api_addr, search_term).await {
             Ok(notes) => notes,
             Err(e) => {
                 eprintln!("Failed to search notes: {:#?}", e);
