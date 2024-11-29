@@ -8,6 +8,7 @@ use draftsmith_rest_api::client::tags::{update_tag, UpdateTagRequest};
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::state::AppState;
 
+#[axum::debug_handler]
 pub async fn route_update_tag(
     session: Session,
     State(state): State<AppState>,
