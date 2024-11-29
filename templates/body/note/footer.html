@@ -17,7 +17,7 @@
         {% if backlinks %} {% for backlink in backlinks %}
         <li>
           <a
-            href="{# url_for('note_detail', note_id=backlink.id) #}"
+            href="/notes/{{ backlink.id }}"
             class="link link-hover"
             >{{ backlink.title }}</a
           >
@@ -33,7 +33,7 @@
         {% if forwardlinks %} {% for link in forwardlinks %}
         <li>
           <a
-            href="{# url_for('note_detail', note_id=link.id) #}"
+            href="/notes/{{ link.id }}"
             class="link link-hover"
             >{{ link.title }}</a
           >
@@ -65,9 +65,9 @@
         {% if similar_notes %} {% for note in similar_notes %}
         <li>
           <a
-            href="{# url_for('note_detail', note_id=backlink.id) #}"
+            href="/notes/{{ note.id }}"
             class="link link-hover"
-            >{{ note.name }}</a
+            >{{ note.title }}</a
           >
         </li>
         {% endfor %} {% else %}
