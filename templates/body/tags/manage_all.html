@@ -33,6 +33,7 @@
           <thead>
             <tr>
               <th>Tag Name</th>
+              <th>Parent Tag</th>
               <th>View</th>
               <th>Actions</th>
             </tr>
@@ -41,19 +42,27 @@
             {% for tag in tags %}
             <tr>
               <td>
-                <form
-                  method="POST"
-                  action="/rename_tag/{{ tag.id }}"
-                  class="flex gap-2"
-                >
+                <form method="POST" action="/rename_tag/{{ tag.id }}" class="flex gap-2">
                   {% include 'csrf_token.html' %}
-                  <input
-                    type="text"
-                    name="name"
-                    value="{{ tag.name }}"
-                    class="input input-bordered input-sm"
-                  />
+                  <input type="text" name="name" value="{{ tag.name }}" class="input input-bordered input-sm" />
                   <button type="submit" class="btn btn-sm">Rename</button>
+                </form>
+              </td>
+              <td>
+                <form method="POST" action="/tag/{{ tag.id }}/set_parent" class="flex gap-2">
+                  {% include 'csrf_token.html' %}
+                  <select name="parent_id" class="select select-bordered select-sm">
+                    <option value="">No Parent</option>
+                    {% for potential_parent in tags %}
+                      {% if potential_parent.id != tag.id %}
+                        <option value="{{ potential_parent.id }}" 
+                                {% if tag.parent_id == potential_parent.id %}selected{% endif %}>
+                          {{ potential_parent.name }}
+                        </option>
+                      {% endif %}
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-sm">Update Parent</button>
                 </form>
               </td>
               <td>
