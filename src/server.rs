@@ -1,5 +1,6 @@
 use crate::routes::{
     notes::{
+        create::route_create,
         edit::{route_edit, route_update_note},
         note_move::{route_detach_note_post, route_move_note_get, route_move_note_post},
         view::route_note,
@@ -45,6 +46,12 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
                 route_note(session, state, Path(1), query)
             }),
         )
+        .route("/create", get(|session, state: State<AppState>, query| {
+            route_create(session, state, Path(None), query)
+        }))
+        .route("/create/:id", get(|session, state: State<AppState>, Path(id): Path<i32>, query| {
+            route_create(session, state, Path(Some(id)), query)
+        }))
         .route("/edit/:id", get(route_edit).post(route_update_note))
         .nest("/static", build_static_routes())
         .route("/search", get(search))
