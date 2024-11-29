@@ -69,7 +69,7 @@ pub async fn route_list_tag(
     // Sort notes by updated_at
     notes.sort_by(|a, b| a.modified_at.cmp(&b.modified_at));
 
-    let template = ENV.get_template("body/recent.html").unwrap_or_else(|e| {
+    let template = ENV.get_template("body/tags/list.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
     });
 
