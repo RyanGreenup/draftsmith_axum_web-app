@@ -6,6 +6,7 @@ use crate::routes::{
         view::route_note,
         delete::route_delete,
     },
+    tags::manage_all_tags::route_manage_tags,
     recent::route_recent,
     search::search,
 };
@@ -56,6 +57,8 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .nest("/static", build_static_routes())
         .route("/search", get(search))
         .route("/recent", get(route_recent))
+        .route("/manage_tags", get(route_manage_tags))
+
         .route("/note/:id", get(route_note))
         .route("/note/:id/delete", post(route_delete))
         .route(
