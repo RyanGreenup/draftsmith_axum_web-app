@@ -1,8 +1,7 @@
 use crate::flash::{FlashMessage, FlashMessageStore};
 use axum::response::Redirect;
 use include_dir::{include_dir, Dir};
-use minijinja::Environment;
-use minijinja::Error;
+use minijinja::{Environment, Error, Value};
 use once_cell::sync::Lazy;
 use tower_sessions::Session;
 
@@ -23,15 +22,21 @@ pub static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
         }
     }
 
-    /*
-
-    // Example: Add custom functions
-    fn concat(a: String, b: String) -> Result<String, Error> {
-        Ok(format!("{}{}", a, b))
+    fn format_datetime(value: Value) -> Result<String, Error> {
+        if let Some(datetime_str) = value.as_str() {
+            // Split at 'T' and process
+            if let Some((date, time)) = datetime_str.split_once('T') {
+                // Take first 5 chars of time (HH:MM)
+                let time = time.get(0..5).unwrap_or("00:00");
+                return Ok(format!("{} {}", date, time));
+            }
+        }
+        
+        // If anything fails, return the original value
+        Ok(value.to_string())
     }
-    env.add_function("c", concat);
 
-    */
+    env.add_filter("format_datetime", format_datetime);
 
     env
 });
