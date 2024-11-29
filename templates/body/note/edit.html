@@ -19,11 +19,40 @@
                 {# <span class="label-text-alt">Use Markdown formatting</span> #}
               </label>
               <textarea
+                id="edit-text-area"
                 name="content"
                 class="textarea textarea-bordered textarea-lg font-mono text-sm w-full min-h-[50vh]"
                 rows="80"
                 required>{{ note.content }}</textarea>
             </div>
+            <link rel="stylesheet" href="/static/css/easymde.min.css">
+            <script src="/static/js/easymde.min.js"></script>
+            <script>
+              document.addEventListener("DOMContentLoaded", function() {
+                var easyMDE = new EasyMDE({
+                  element: document.getElementById("edit-text-area"),
+                  toolbar: [
+                    "fullscreen", // Adds the full-screen option as the first item on the toolbar
+                    "|", // Separator
+                    "bold",
+                    "italic",
+                    "heading",
+                    "|", // Another separator
+                    "quote",
+                    "unordered-list",
+                    "ordered-list",
+                    "|",
+                    "link",
+                    "image",
+                    "|",
+                    "preview",
+                    "side-by-side",
+                    "guide"
+                  ]
+                });
+              });
+            </script>
+
 
             <div class="flex justify-end gap-2">
               {# url_for('note_detail', note_id=note.id) #}
