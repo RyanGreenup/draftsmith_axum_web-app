@@ -30,8 +30,8 @@
           >
         </td>
         {# TODO Create Filter function for dates #}
-        <td>{{ note.created_at }}</td>
-        <td>{{ note.modified_at }}</td>
+        <td>{{ note.created_at | datetime }}</td>
+        <td>{{ note.modified_at | datetime }}</td>
       </tr>
       {% endfor %}
     </tbody>

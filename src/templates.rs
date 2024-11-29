@@ -22,6 +22,14 @@ pub static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
         }
     }
 
+    /*
+    1 Take, e.g. "2024-11-22T04:54:33.933017"
+    2 Split at "T" to get ["2024-11-22", "04:54:33.933017"]
+    3 Keep the date part and first 5 chars of time
+    4 Join with space to get "2024-11-22 04:54"
+
+    Datetime libraries are not used because they were a pain.
+     */
     fn format_datetime(value: Value) -> Result<String, Error> {
         if let Some(datetime_str) = value.as_str() {
             // Split at 'T' and process
@@ -31,12 +39,12 @@ pub static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
                 return Ok(format!("{} {}", date, time));
             }
         }
-        
+
         // If anything fails, return the original value
         Ok(value.to_string())
     }
 
-    env.add_filter("format_datetime", format_datetime);
+    env.add_filter("datetime", format_datetime);
 
     env
 });
