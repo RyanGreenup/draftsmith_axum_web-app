@@ -4,8 +4,11 @@
 <script src="/static/js/dataTables.js"></script>
 <script>
     $(document).ready(function() {
-        $('.dataTablesContainer table').DataTable({
-            pageLength: 50 // Number of rows
-        });
+        // Check if table is already initialized
+        if (!$.fn.DataTable.isDataTable('.dataTablesContainer table')) {
+            $('.dataTablesContainer table').DataTable({
+                pageLength: 50 // Number of rows
+            });
+        }
     });
 </script>
