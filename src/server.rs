@@ -9,6 +9,7 @@ use crate::routes::{
     tags::{
         manage_all_tags::route_manage_tags,
         create::route_create_tag,
+        delete::route_delete_tag,
     },
     recent::route_recent,
     search::search,
@@ -62,6 +63,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/recent", get(route_recent))
         .route("/manage_tags", get(route_manage_tags))
         .route("/create_tag", post(route_create_tag))
+        .route("/delete_tag/:id", post(route_delete_tag))
 
         .route("/note/:id", get(route_note))
         .route("/note/:id/delete", post(route_delete))
