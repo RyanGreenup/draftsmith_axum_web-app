@@ -31,7 +31,11 @@
           >
         </td>
         {# TODO Create Filter function for dates #}
-        <td><div class="card">{{ note.content | safe }}</div></td>
+        <td>
+            <div class="overflow-auto max-h-48 p-2 border rounded-lg shadow bg-white">
+                {{ note.content | safe }}
+            </div>
+        </td>
         <td>{{ note.created_at }}</td>
         <td>
             {{ note.modified_at }}
