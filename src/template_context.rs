@@ -2,7 +2,7 @@ use crate::flash::FlashMessageStore;
 use crate::html_builder::build_note_tree_html;
 use crate::MAX_ITEMS_PER_PAGE;
 use axum::extract::Query;
-use draftsmith_rest_api::client::tags::{list_note_tags, get_tag}
+use draftsmith_rest_api::client::tags::{list_note_tags, get_tag};
 use draftsmith_rest_api::client::notes::{NoteWithoutFts, get_backlinks, get_forward_links};
 use draftsmith_rest_api::client::{
     fetch_note, fetch_note_tree, get_note_breadcrumbs,
@@ -137,16 +137,26 @@ impl NoteTemplateContext {
         };
 
         // Get the tags
-        let note_tag_ids = match list_note_tags(&api_addr).await {
+        let note_tag_relations = match list_note_tags(&api_addr).await {
             Ok(t) => t,
             Err(e) => {
-                eprintln!("Failed to get tags: {:#?}", e);
+                eprintln!("Failed to get note-tag relations: {:#?}", e);
                 Vec::new()
             }
         };
 
-        // TODO loop over the tags and identify the tag_id for the note
-        // TODO Resolve those tags into
+        // Filter for tags belonging to this note
+        let note_tags = note_tag_relations
+            .into_iter()
+            .filter(|nt| nt.note_id == note_id);
+
+        // Resolve tag IDs to actual tag objects
+        let mut tags = Vec::new();
+        for note_tag in note_tags {
+            if let Ok(tag) = get_tag(&api_addr, note_tag.tag_id).await {
+                tags.push(tag);
+            }
+        }
 
         // Get note
         // TODO currently this fetches the note content even if it's not required.

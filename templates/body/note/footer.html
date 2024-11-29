@@ -49,7 +49,7 @@
         {% if tags %} {% for tag in tags %}
         <li>
           <a
-            href="{# url_for('tag_detail', tag_id=tag.id) #}"
+            href="/tag/{{ tag.id }}"
             class="link link-hover"
             >{{ tag.name }}</a
           >
