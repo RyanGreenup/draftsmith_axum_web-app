@@ -140,7 +140,7 @@ impl NoteTemplateContext {
         /*
         Python Version:
         def get_tag_notes(tag_id) -> List[NoteWithoutContent]:
-            note_tags = tagapi.get_note_tag_relations()
+            note_tags = list_note_tags()
             relevant_note_tags = [nt for nt in note_tags if nt.tag_id == tag_id]
             all_note_details = [
                 noteapi.get_note_without_content(nt.note_id) for nt in relevant_note_tags
