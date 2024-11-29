@@ -17,7 +17,7 @@
         {% if backlinks %} {% for backlink in backlinks %}
         <li>
           <a
-            href="/notes/{{ backlink.id }}"
+            href="/note/{{ backlink.id }}"
             class="link link-hover"
             >{{ backlink.title }}</a
           >
@@ -33,7 +33,7 @@
         {% if forwardlinks %} {% for link in forwardlinks %}
         <li>
           <a
-            href="/notes/{{ link.id }}"
+            href="/note/{{ link.id }}"
             class="link link-hover"
             >{{ link.title }}</a
           >
@@ -65,7 +65,7 @@
         {% if similar_notes %} {% for note in similar_notes %}
         <li>
           <a
-            href="/notes/{{ note.id }}"
+            href="/note/{{ note.id }}"
             class="link link-hover"
             >{{ note.title }}</a
           >

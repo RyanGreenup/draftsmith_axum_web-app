@@ -2,7 +2,7 @@ use crate::flash::FlashMessageStore;
 use crate::html_builder::build_note_tree_html;
 use crate::MAX_ITEMS_PER_PAGE;
 use axum::extract::Query;
-use draftsmith_rest_api::client::notes::NoteWithoutFts;
+use draftsmith_rest_api::client::{tags::list_note_tags, notes::{NoteWithoutFts, get_backlinks, get_forward_links}};
 use draftsmith_rest_api::client::{
     fetch_note, fetch_note_tree, get_note_breadcrumbs,
     notes::{get_note_rendered_html, NoteError},
@@ -117,6 +117,38 @@ impl NoteTemplateContext {
             }
         };
 
+        // Get the backlinks
+        let backlinks = match get_backlinks(&api_addr, note_id).await {
+            Ok(b) => b,
+            Err(e) => {
+                eprintln!("Failed to get backlinks: {:#?}", e);
+                Vec::new()
+            }
+        };
+
+        // Get the forward links
+        let forward_links = match get_forward_links(&api_addr, note_id).await {
+            Ok(b) => b,
+            Err(e) => {
+                eprintln!("Failed to get forward links: {:#?}", e);
+                Vec::new()
+            }
+        };
+
+        // TODO Get the Tags
+
+        /*
+        Python Version:
+        def get_tag_notes(tag_id) -> List[NoteWithoutContent]:
+            note_tags = tagapi.get_note_tag_relations()
+            relevant_note_tags = [nt for nt in note_tags if nt.tag_id == tag_id]
+            all_note_details = [
+                noteapi.get_note_without_content(nt.note_id) for nt in relevant_note_tags
+            ]
+            return all_note_details
+        */
+
+
         // Get note
         // TODO currently this fetches the note content even if it's not required.
         // This could be refactored to reduce requests, however, care needs to be taken to keep
@@ -128,6 +160,8 @@ impl NoteTemplateContext {
         let ctx = context! { ..body_handler.ctx, ..context! {
             note => note,
             breadcrumbs => breadcrumbs,
+            forwardlinks => forward_links,
+            backlinks => backlinks,
         }};
 
         Ok(Self { api_addr, ctx })
