@@ -4,7 +4,10 @@ use axum::{
 };
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::state::AppState;
-use draftsmith_rest_api::client::{create_note, attach_child_note, AttachChildRequest, fetch_note, CreateNoteRequest, get_note_breadcrumbs};
+use draftsmith_rest_api::client::{
+    create_note, attach_child_note, AttachChildRequest, 
+    fetch_note, CreateNoteRequest, get_note_breadcrumbs,
+};
 use tower_sessions::Session;
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -13,85 +16,79 @@ pub struct CreateNoteParams {
     as_sibling: bool,
 }
 
+async fn handle_attachment(
+    api_addr: &str,
+    note_id: i32,
+    reference_id: i32,
+    as_sibling: bool,
+) -> Result<String, String> {
+    if as_sibling {
+        let breadcrumbs = get_note_breadcrumbs(api_addr, reference_id)
+            .await
+            .map_err(|e| format!("Failed to get breadcrumbs: {}", e))?;
+
+        // Get parent from breadcrumbs (excluding current note and its parent)
+        let parent_id = breadcrumbs
+            .iter()
+            .rev()
+            .nth(2)
+            .map(|note| note.id)
+            .ok_or_else(|| "No parent found for sibling".to_string())?;
+
+        attach_note(api_addr, note_id, parent_id).await?;
+        Ok(format!(" as sibling of #{}", reference_id))
+    } else {
+        attach_note(api_addr, note_id, reference_id).await?;
+        Ok(format!(" and attached to #{}", reference_id))
+    }
+}
+
+async fn attach_note(api_addr: &str, child_id: i32, parent_id: i32) -> Result<(), String> {
+    let attach_request = AttachChildRequest {
+        child_note_id: child_id,
+        parent_note_id: Some(parent_id),
+    };
+    
+    attach_child_note(api_addr, attach_request)
+        .await
+        .map_err(|e| format!("Failed to attach note: {}", e))
+}
+
 pub async fn route_create(
     session: Session,
     State(state): State<AppState>,
     Path(parent_id): Path<Option<i32>>,
     Query(params): Query<CreateNoteParams>,
 ) -> Response {
-    let api_addr: String = state.api_addr.clone();
-
     let create_request = CreateNoteRequest {
-        // Title has been dropped from the api in favour of H1
-        title: "".to_string(),
-        content: "".to_string(),
+        title: String::new(),
+        content: String::new(),
     };
 
-    match create_note(&api_addr, create_request).await {
+    match create_note(&state.api_addr, create_request).await {
         Ok(note) => {
-            // Build flash message
-            let mut flash_string = format!("Note created successfully #{}", note.id);
+            let mut message = format!("Note created successfully #{}", note.id);
 
-            // Handle different creation modes
-            match (parent_id, params.as_sibling) {
-                // Create as sibling of specified note
-                (Some(reference_id), true) => {
-                    if let Ok(reference_note) = fetch_note(&api_addr, reference_id, true).await {
-                        let mut breadcrumbs = get_note_breadcrumbs(&api_addr, reference_id).await.unwrap();
-                        // The last element is the current note
-                        breadcrumbs.pop();
-                        // TODO handle optional
-                        let parent_note = breadcrumbs.pop();
-                        if let Some(parent_note) = parent_note {
-                            let attach_request = AttachChildRequest {
-                                child_note_id: note.id,
-                                parent_note_id: Some(parent_note.id),
-
-                            };
-                            match attach_child_note(&api_addr, attach_request).await {
-                                Ok(_) => {
-                                    flash_string.push_str(&format!(" as sibling of #{}", reference_id));
-                                }
-                                Err(e) => {
-                                    flash_string.push_str(&format!(" but failed to attach as sibling: {}", e));
-                                }
-                            }
-                        }
-                    }
-                },
-                // Create as child of specified note
-                (Some(parent_id), false) => {
-                    let attach_request = AttachChildRequest {
-                        child_note_id: note.id,
-                        parent_note_id: Some(parent_id),
-
-                    };
-                    match attach_child_note(&api_addr, attach_request).await {
-                        Ok(_) => {
-                            flash_string.push_str(&format!(" and attached to #{}", parent_id));
-                        }
-                        Err(e) => {
-                            flash_string.push_str(&format!(" but failed to attach to #{}", e));
-                        }
-                    }
-                },
-                // Create standalone note
-                (None, _) => {}
+            // Handle attachment if parent_id is provided
+            if let Some(reference_id) = parent_id {
+                if let Err(e) = handle_attachment(&state.api_addr, note.id, reference_id, params.as_sibling).await {
+                    message.push_str(&format!(" but failed to attach: {}", e));
+                }
             }
 
-            // Set the flash
             session
-                .set_flash(FlashMessage::success(flash_string))
+                .set_flash(FlashMessage::success(message))
                 .await
-                .unwrap();
-            // Redirect
+                .unwrap_or_else(|e| eprintln!("Failed to set flash message: {}", e));
+
             Redirect::to(&format!("/edit/{}", note.id)).into_response()
         }
         Err(e) => {
             session
                 .set_flash(FlashMessage::error(format!("Failed to create note: {}", e)))
                 .await
-                .unwrap();
+                .unwrap_or_else(|e| eprintln!("Failed to set flash message: {}", e));
+
             Redirect::to("/").into_response()
         }
     }
