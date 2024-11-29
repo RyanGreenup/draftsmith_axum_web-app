@@ -2,7 +2,8 @@ use crate::flash::FlashMessageStore;
 use crate::html_builder::build_note_tree_html;
 use crate::MAX_ITEMS_PER_PAGE;
 use axum::extract::Query;
-use draftsmith_rest_api::client::{tags::list_note_tags, notes::{NoteWithoutFts, get_backlinks, get_forward_links}};
+use draftsmith_rest_api::client::tags::list_note_tags;
+use draftsmith_rest_api::client::notes::{NoteWithoutFts, get_backlinks, get_forward_links};
 use draftsmith_rest_api::client::{
     fetch_note, fetch_note_tree, get_note_breadcrumbs,
     notes::{get_note_rendered_html, NoteError},
@@ -135,19 +136,14 @@ impl NoteTemplateContext {
             }
         };
 
-        // TODO Get the Tags
-
-        /*
-        Python Version:
-        def get_tag_notes(tag_id) -> List[NoteWithoutContent]:
-            note_tags = list_note_tags()
-            relevant_note_tags = [nt for nt in note_tags if nt.tag_id == tag_id]
-            all_note_details = [
-                noteapi.get_note_without_content(nt.note_id) for nt in relevant_note_tags
-            ]
-            return all_note_details
-        */
-
+        // Get the tags
+        let tags = match list_note_tags(&api_addr).await {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("Failed to get tags: {:#?}", e);
+                Vec::new()
+            }
+        };
 
         // Get note
         // TODO currently this fetches the note content even if it's not required.
@@ -162,6 +158,7 @@ impl NoteTemplateContext {
             breadcrumbs => breadcrumbs,
             forwardlinks => forward_links,
             backlinks => backlinks,
+            tags => tags,
         }};
 
         Ok(Self { api_addr, ctx })
@@ -173,6 +170,32 @@ impl NoteTemplateContext {
     #[allow(dead_code)]
     pub async fn get_note_with_content(&self, id: i32) -> Result<NoteWithoutFts, NoteError> {
         fetch_note(&self.api_addr, id, false).await
+    }
+
+    async fn get_tag_notes(&self, tag_id: i32) -> Vec<NoteWithoutFts> {
+        // Get note-tag relations
+        match list_note_tags(&self.api_addr).await {
+            Ok(note_tags) => {
+                // Filter for relevant tags
+                let relevant_note_tags: Vec<_> = note_tags
+                    .into_iter()
+                    .filter(|nt| nt.tag_id == tag_id)
+                    .collect();
+
+                // Get note details for each relevant tag
+                let mut notes = Vec::new();
+                for note_tag in relevant_note_tags {
+                    if let Ok(note) = fetch_note(&self.api_addr, note_tag.note_id, false).await {
+                        notes.push(note);
+                    }
+                }
+                notes
+            }
+            Err(e) => {
+                eprintln!("Failed to get note-tag relations: {:#?}", e);
+                Vec::new()
+            }
+        }
     }
 
     pub async fn get_rendered_html(
