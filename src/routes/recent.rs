@@ -56,7 +56,7 @@ pub async fn route_recent(
 
     // get the context vars
     let ctx = context! { ..body_handler.ctx, ..context! {
-        recent_notes => recent_notes,
+        notes => recent_notes,
     }};
 
     let rendered = template.render(ctx).unwrap_or_else(handle_template_error);
