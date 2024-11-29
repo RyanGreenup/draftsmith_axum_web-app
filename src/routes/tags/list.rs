@@ -54,7 +54,7 @@ pub async fn route_list_tag(
         })
         // Filter out the relevant tags
         .into_iter()
-        .filter(|tag| tag.note_id == id)
+        .filter(|tag| tag.tag_id == id)
         .collect();
 
     // Get all the note Metadata
