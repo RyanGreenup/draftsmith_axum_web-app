@@ -60,11 +60,10 @@ pub async fn search(
     };
 
     // Include only the last 50 notes
-    let mut recent_notes = notes.iter().take(50).collect::<Vec<_>>();
+    let mut recent_notes = notes.into_iter().take(50).collect::<Vec<_>>();
 
     // Render the markdown
-
-    for note in recent_notes.iter_mut() {
+    for note in &mut recent_notes {
         note.content = get_note_rendered_html(&api_addr, note.id).await.unwrap_or(note.content.clone());
     }
 
