@@ -18,12 +18,12 @@
         <ul
           class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-200 rounded-box w-52"
         >
-          {% if note %}
-          {{ link_item("/edit/" ~ note.id, "Edit") }}
+
           {{ link_item("/create", "Create") }}
-          {# NOTE this page will be a child of the current #}
-          {{ link_item("/create/" ~ note.id, "New Subpage") }}
-          {{ link_item("/create/" ~ note.id ~ "?as_sibling=true", "New Sibling") }}
+          {% if note %}
+          {{ link_item("/create/" ~ note.id, "→ Create Subpage") }}
+          {{ link_item("/create/" ~ note.id ~ "?as_sibling=true", "↓ Create Sibling") }}
+          {{ link_item("/edit/" ~ note.id, "Edit") }}
           {{ link_item("/manage_tags/" ~ note.id, "Assign Tags") }}
           {% endif %}
           {{ link_item("/recent", "Recent") }}

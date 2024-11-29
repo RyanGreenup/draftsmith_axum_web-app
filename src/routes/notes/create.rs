@@ -5,7 +5,7 @@ use axum::{
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::state::AppState;
 use draftsmith_rest_api::client::{
-    create_note, attach_child_note, AttachChildRequest, 
+    create_note, attach_child_note, AttachChildRequest,
     fetch_note, CreateNoteRequest, get_note_breadcrumbs,
 };
 use tower_sessions::Session;
@@ -31,7 +31,7 @@ async fn handle_attachment(
         let parent_id = breadcrumbs
             .iter()
             .rev()
-            .nth(2)
+            .nth(1)
             .map(|note| note.id)
             .ok_or_else(|| "No parent found for sibling".to_string())?;
 
@@ -48,7 +48,7 @@ async fn attach_note(api_addr: &str, child_id: i32, parent_id: i32) -> Result<()
         child_note_id: child_id,
         parent_note_id: Some(parent_id),
     };
-    
+
     attach_child_note(api_addr, attach_request)
         .await
         .map_err(|e| format!("Failed to attach note: {}", e))

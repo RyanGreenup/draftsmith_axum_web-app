@@ -2,7 +2,7 @@ use crate::state::AppState;
 use axum::http::StatusCode;
 use axum::{
     extract::Path,
-    http::header::{self, HeaderName, CACHE_CONTROL, CONTENT_TYPE},
+    http::header::{self, CACHE_CONTROL, CONTENT_TYPE},
     response::IntoResponse,
     routing::get,
     Router,
@@ -99,16 +99,16 @@ async fn get_static_file(dir: &Dir<'_>, path: String) -> impl IntoResponse {
     if let Some(file) = dir.get_file(&path) {
         let content_type = determine_content_type(file.path());
         let contents = file.contents();
-        
+
         // In a real implementation, you would check the Accept-Encoding header
         let accepts_gzip = true;
-        
+
         if accepts_gzip {
             // Compress the contents
             let mut encoder = GzipEncoder::new(&contents[..]);
             let mut compressed = Vec::new();
             encoder.read_to_end(&mut compressed).await.unwrap();
-            
+
             return (
                 StatusCode::OK,
                 [
@@ -119,7 +119,7 @@ async fn get_static_file(dir: &Dir<'_>, path: String) -> impl IntoResponse {
                 compressed,
             );
         }
-        
+
         return (
             StatusCode::OK,
             [

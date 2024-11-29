@@ -5,7 +5,7 @@ use axum::{
     extract::{Query, State},
     response::Html,
 };
-use draftsmith_rest_api::client::notes::fetch_notes;
+use draftsmith_rest_api::client::notes::{fetch_notes, get_note_path};
 use minijinja::context;
 use tower_sessions::Session;
 
@@ -40,7 +40,15 @@ pub async fn route_recent(
     notes.sort_by(|a, b| a.modified_at.cmp(&b.modified_at));
 
     // Include only the last 50 notes
-    let recent_notes = notes.iter().rev().take(50).collect::<Vec<_>>();
+    let mut recent_notes = notes.into_iter().rev().take(50).collect::<Vec<_>>();
+    for note in &mut recent_notes {
+        note.title= get_note_path(&api_addr, note.id)
+            .await
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to get note path: {:#?}", e);
+                note.title.clone()
+            });
+    }
 
     let template = ENV.get_template("body/recent.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);

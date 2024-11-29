@@ -1,16 +1,13 @@
-use crate::html_builder::build_note_tree_html;
 use crate::templates::{handle_template_error, ENV};
 use serde::Deserialize;
 use crate::template_context::{NoteTemplateContext, PaginationParams};
 
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::state::AppState;
-use crate::MAX_ITEMS_PER_PAGE;
 use draftsmith_rest_api::client::{
-    attach_child_note, detach_child_note, fetch_note_tree, get_note_breadcrumbs,
+    attach_child_note, detach_child_note, get_note_breadcrumbs,
     AttachChildRequest, NoteBreadcrumb,
 };
-use minijinja::context;
 use tower_sessions::Session;
 use crate::templates::handle_not_found;
 use axum::{

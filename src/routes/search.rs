@@ -5,7 +5,7 @@ use axum::{
     extract::{Query, State},
     response::Html,
 };
-use draftsmith_rest_api::client::notes::{fetch_notes, fts_search_notes, get_note_rendered_html};
+use draftsmith_rest_api::client::notes::{fetch_notes, fts_search_notes, get_note_path};
 use minijinja::context;
 use serde::Deserialize;
 use tower_sessions::Session;
@@ -59,7 +59,19 @@ pub async fn search(
 
     // Include only the last 50 notes
     let mut recent_notes = notes.into_iter().take(50).collect::<Vec<_>>();
+    for note in &mut recent_notes {
+        note.title= get_note_path(&api_addr, note.id)
+            .await
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to get note path: {:#?}", e);
+                note.title.clone()
+            });
+    }
 
+
+    // use draftsmith_rest_api::client::notes::{fetch_notes, fts_search_notes, get_note_rendered_html};
+    //
+    // let mut recent_notes = notes.into_iter().take(50).collect::<Vec<_>>();
     // // Render the markdown
     // I decided against this because the markdown rendering is slow and
     // any js in there becomes a security risk / chaos with so many
