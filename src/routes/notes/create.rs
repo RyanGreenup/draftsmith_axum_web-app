@@ -4,7 +4,7 @@ use axum::{
 };
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::state::AppState;
-use draftsmith_rest_api::client::{create_note, attach_child_note, get_note, CreateNoteRequest};
+use draftsmith_rest_api::client::{create_note, attach_child_note, AttachChildRequest, fetch_note, CreateNoteRequest, get_note_breadcrumbs};
 use tower_sessions::Session;
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -35,9 +35,19 @@ pub async fn route_create(
             match (parent_id, params.as_sibling) {
                 // Create as sibling of specified note
                 (Some(reference_id), true) => {
-                    if let Ok(reference_note) = get_note(&api_addr, reference_id).await {
-                        if let Some(parent_id) = reference_note.parent_id {
-                            match attach_note(&api_addr, parent_id, note.id).await {
+                    if let Ok(reference_note) = fetch_note(&api_addr, reference_id, true).await {
+                        let mut breadcrumbs = get_note_breadcrumbs(&api_addr, reference_id).await.unwrap();
+                        // The last element is the current note
+                        breadcrumbs.pop();
+                        // TODO handle optional
+                        let parent_note = breadcrumbs.pop();
+                        if let Some(parent_note) = parent_note {
+                            let attach_request = AttachChildRequest {
+                                child_note_id: note.id,
+                                parent_note_id: Some(parent_note.id),
+
+                            };
+                            match attach_child_note(&api_addr, attach_request).await {
                                 Ok(_) => {
                                     flash_string.push_str(&format!(" as sibling of note {}", reference_id));
                                 }
@@ -50,7 +60,12 @@ pub async fn route_create(
                 },
                 // Create as child of specified note
                 (Some(parent_id), false) => {
-                    match attach_note(&api_addr, parent_id, note.id).await {
+                    let attach_request = AttachChildRequest {
+                        child_note_id: note.id,
+                        parent_note_id: Some(parent_id),
+
+                    };
+                    match attach_child_note(&api_addr, attach_request).await {
                         Ok(_) => {
                             flash_string.push_str(&format!(" and attached to note {}", parent_id));
                         }
