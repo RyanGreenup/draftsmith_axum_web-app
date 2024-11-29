@@ -6,7 +6,7 @@ use axum::{
     response::Html,
 };
 use draftsmith_rest_api::client::notes::{fetch_notes, get_note_path};
-use draftsmith_rest_api::client::tags::{list_tags, create_tag, delete_tag, update_tag};
+use draftsmith_rest_api::client::tags::{list_tags, create_tag, delete_tag, update_tag, attach_child_tag, detach_child_tag};
 
 use minijinja::context;
 use tower_sessions::Session;
