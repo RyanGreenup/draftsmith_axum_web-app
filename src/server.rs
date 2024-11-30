@@ -96,11 +96,21 @@ async fn route_serve_asset(
     Path(file_path): Path<String>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    let client = Client::new();
+    let client = match Client::builder().build() {
+        Ok(client) => client,
+        Err(_) => {
+            return Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .header("cache-control", "no-store")
+                .body(Body::from("Failed to initialize HTTP client"))
+                .unwrap_or_else(|_| internal_server_error_response())
+        }
+    };
+
     let asset_url = format!("{}/assets/download/{}", state.api_addr, file_path);
+    let mut request = client.get(&asset_url);
 
     // Forward conditional headers if present
-    let mut request = client.get(&asset_url);
     if let Some(if_none_match) = headers.get(IF_NONE_MATCH) {
         request = request.header(IF_NONE_MATCH, if_none_match);
     }
@@ -118,46 +128,124 @@ async fn route_serve_asset(
                 return Response::builder()
                     .status(StatusCode::NOT_MODIFIED)
                     .body(Body::empty())
-                    .unwrap_or_default();
+                    .unwrap_or_else(|_| not_modified_response());
             }
 
-            let bytes = response.bytes().await.unwrap_or_default();
-            
-            let mut builder = Response::builder()
-                .status(status)
-                .header("content-type", headers.get("content-type")
-                    .unwrap_or(&"application/octet-stream".parse().unwrap()));
+            // Handle non-success status codes from upstream
+            if !status.is_success() {
+                return map_upstream_error(status);
+            }
 
-            // Forward cache-related headers from API
-            for header in ["cache-control", "etag", "last-modified"] {
-                if let Some(value) = headers.get(header) {
-                    builder = builder.header(header, value);
+            match response.bytes().await {
+                Ok(bytes) => {
+                    let mut builder = Response::builder().status(status);
+
+                    // Set content-type, defaulting to octet-stream if not provided
+                    let content_type = headers
+                        .get("content-type")
+                        .and_then(|h| h.to_str().ok())
+                        .unwrap_or("application/octet-stream");
+                    builder = builder.header("content-type", content_type);
+
+                    // Forward cache-related headers from API
+                    for header in ["cache-control", "etag", "last-modified"] {
+                        if let Some(value) = headers.get(header) {
+                            if let Ok(value_str) = value.to_str() {
+                                builder = builder.header(header, value_str);
+                            }
+                        }
+                    }
+
+                    // If API didn't provide cache headers, set reasonable defaults
+                    if !headers.contains_key("cache-control") {
+                        builder = builder.header("cache-control", "public, max-age=3600");
+                    }
+                    if !headers.contains_key("etag") && !headers.contains_key("last-modified") {
+                        // Generate simple etag from content length and last few bytes
+                        let simple_etag = format!(
+                            "W/\"{}-{}\"",
+                            bytes.len(),
+                            bytes
+                                .iter()
+                                .rev()
+                                .take(4)
+                                .map(|b| format!("{:02x}", b))
+                                .collect::<String>()
+                        );
+                        builder = builder.header("etag", simple_etag);
+                    }
+
+                    builder
+                        .body(Body::from(bytes))
+                        .unwrap_or_else(|_| internal_server_error_response())
                 }
+                Err(_) => internal_server_error_response(),
             }
-
-            // If API didn't provide cache headers, set reasonable defaults
-            if !headers.contains_key("cache-control") {
-                builder = builder.header("cache-control", "public, max-age=3600"); // Cache for 1 hour
+        }
+        Err(e) => {
+            // Handle network-level errors
+            if e.is_timeout() {
+                gateway_timeout_response()
+            } else if e.is_connect() {
+                bad_gateway_response()
+            } else {
+                internal_server_error_response()
             }
-            if !headers.contains_key("etag") && !headers.contains_key("last-modified") {
-                // Generate simple etag from content length and last few bytes
-                let simple_etag = format!("W/\"{}-{}\"", 
-                    bytes.len(),
-                    bytes.iter().rev().take(4).map(|b| format!("{:02x}", b)).collect::<String>()
-                );
-                builder = builder.header("etag", simple_etag);
-            }
-
-            builder.body(Body::from(bytes))
-                .unwrap_or_default()
-        },
-        Err(_) => Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .header("cache-control", "no-store")
-            .header("content-type", "text/plain")
-            .body(Body::from("Asset not found"))
-            .unwrap_or_default()
+        }
     }
+}
+
+// Helper functions for common responses
+fn internal_server_error_response() -> Response {
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .header("cache-control", "no-store")
+        .header("content-type", "text/plain")
+        .body(Body::from("Internal server error"))
+        .unwrap_or_default()
+}
+
+fn not_modified_response() -> Response {
+    Response::builder()
+        .status(StatusCode::NOT_MODIFIED)
+        .body(Body::empty())
+        .unwrap_or_default()
+}
+
+fn bad_gateway_response() -> Response {
+    Response::builder()
+        .status(StatusCode::BAD_GATEWAY)
+        .header("cache-control", "no-store")
+        .header("content-type", "text/plain")
+        .body(Body::from("Bad gateway"))
+        .unwrap_or_default()
+}
+
+fn gateway_timeout_response() -> Response {
+    Response::builder()
+        .status(StatusCode::GATEWAY_TIMEOUT)
+        .header("cache-control", "no-store")
+        .header("content-type", "text/plain")
+        .body(Body::from("Gateway timeout"))
+        .unwrap_or_default()
+}
+
+fn map_upstream_error(status: StatusCode) -> Response {
+    let (status, message) = match status {
+        StatusCode::NOT_FOUND => (StatusCode::NOT_FOUND, "Asset not found"),
+        StatusCode::FORBIDDEN => (StatusCode::FORBIDDEN, "Access denied"),
+        _ => (
+            StatusCode::BAD_GATEWAY,
+            "Unexpected response from upstream server",
+        ),
+    };
+
+    Response::builder()
+        .status(status)
+        .header("cache-control", "no-store")
+        .header("content-type", "text/plain")
+        .body(Body::from(message))
+        .unwrap_or_else(|_| internal_server_error_response())
 }
 
     // Do it!
