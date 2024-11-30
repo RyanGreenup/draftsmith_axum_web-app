@@ -1,10 +1,33 @@
 class KeyboardShortcuts {
     constructor() {
         this.shortcuts = {
+            // Navigation shortcuts
+            prevPage: {
+                key: 'ArrowLeft',
+                modifier: 'Alt',
+                action: () => this.navigateToPage('prev')
+            },
+            nextPage: {
+                key: 'ArrowRight',
+                modifier: 'Alt',
+                action: () => this.navigateToPage('next')
+            },
+            prevNote: {
+                key: 'ArrowUp',
+                modifier: 'Alt',
+                action: () => this.navigateToNearestNote('prev')
+            },
+            nextNote: {
+                key: 'ArrowDown',
+                modifier: 'Alt',
+                action: () => this.navigateToNearestNote('next')
+            },
+
+            // Action shortcuts
             edit: {
                 key: 'e',
                 modifier: 'Alt',
-                selector: 'a[data-edit-link]'
+                selector: 'a[data-edit-link], a[href$="/edit"]'
             },
             create: {
                 key: 'c',
@@ -28,6 +51,7 @@ class KeyboardShortcuts {
 
     init() {
         document.addEventListener('keydown', (event) => this.handleKeydown(event));
+        console.log("Keyboard shortcuts initialized");
     }
 
     handleKeydown(event) {
@@ -36,13 +60,13 @@ class KeyboardShortcuts {
                 (shortcut.modifier === 'Alt' && event.altKey) ||
                 (shortcut.modifier === 'Control' && event.ctrlKey)
             ) {
-                if (event.key.toLowerCase() === shortcut.key.toLowerCase() || 
-                    event.code === shortcut.key) {
+                if (event.key === shortcut.key || 
+                    event.key.toLowerCase() === shortcut.key.toLowerCase()) {
                     event.preventDefault();
                     
                     if (shortcut.action) {
                         shortcut.action();
-                    } else {
+                    } else if (shortcut.selector) {
                         this.navigateToLink(shortcut.selector);
                     }
                 }
@@ -54,7 +78,7 @@ class KeyboardShortcuts {
         const form = document.getElementById('content-edit-form');
         if (form) {
             form.submit();
-            return false; // Prevent any default behavior
+            return false;
         }
     }
 
@@ -80,10 +104,53 @@ class KeyboardShortcuts {
                             text + 
                             originalText.slice(endPos);
 
-        // Move the caret just after the '(' in the inserted text
         const newCaretPosition = startPos + text.indexOf('(') + 1;
         activeElement.setSelectionRange(newCaretPosition, newCaretPosition);
         activeElement.focus();
+    }
+
+    navigateToPage(direction) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentPage = parseInt(urlParams.get('page')) || 1;
+        
+        let newPage;
+        if (direction === 'next') {
+            newPage = currentPage + 1;
+        } else {
+            newPage = Math.max(currentPage - 1, 1);
+        }
+
+        if (newPage !== currentPage) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('page', newPage);
+            window.location.href = url.toString();
+        }
+    }
+
+    navigateToNearestNote(direction) {
+        const noteLinks = document.querySelectorAll('.note-item a');
+        if (!noteLinks.length) return;
+
+        const currentPath = window.location.pathname;
+        const currentNoteId = currentPath.split('/').pop();
+
+        let currentIndex = -1;
+        noteLinks.forEach((link, index) => {
+            if (link.href.endsWith(`/note/${currentNoteId}`)) {
+                currentIndex = index;
+            }
+        });
+
+        let newIndex;
+        if (direction === 'next') {
+            newIndex = currentIndex < noteLinks.length - 1 ? currentIndex + 1 : 0;
+        } else {
+            newIndex = currentIndex > 0 ? currentIndex - 1 : noteLinks.length - 1;
+        }
+
+        if (newIndex !== currentIndex) {
+            window.location.href = noteLinks[newIndex].href;
+        }
     }
 }
 
