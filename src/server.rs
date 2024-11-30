@@ -27,7 +27,7 @@ use crate::state::AppState;
 use crate::static_files::build_static_routes;
 use axum::extract::State;
 use axum::{
-    extract::Path,
+    extract::{Path, DefaultBodyLimit},
     routing::{get, post},
     Router,
 };
@@ -52,6 +52,8 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         api_addr: api_addr.clone(),
     };
 
+
+    let max_body_size = 1024 * 1024 * 1024; // 1 GB
     // Set up Routes
     let app = Router::<AppState>::new()
         .route(
@@ -88,6 +90,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/assign_tags/:id", get(route_assign_tags_get).post(route_assign_tags_post))
         .route("/m/*file_path", get(route_serve_asset))
         .layer(CompressionLayer::new())
+        .layer(DefaultBodyLimit::max(max_body_size))
         .with_state(state)
         .layer(session_layer);
 
@@ -250,6 +253,7 @@ fn map_upstream_error(status: StatusCode) -> Response {
 
     // Do it!
     axum::serve(listener, app)
+        .tcp_nodelay(true)
         .await
         .unwrap_or_else(|e| panic!("Unable to serve application. Error: {:#}", e));
 }
