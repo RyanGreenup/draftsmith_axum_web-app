@@ -71,3 +71,16 @@
   height: 2px;
   background-color: #666;
 }
+
+.detach-zone {
+    transition: all 0.2s ease;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.detach-zone.drag-hover {
+    background-color: rgba(200, 200, 200, 0.3);
+    border-color: #666;
+}
