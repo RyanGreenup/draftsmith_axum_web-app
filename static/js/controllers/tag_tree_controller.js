@@ -74,23 +74,8 @@ export default class extends Controller {
     }
 
     try {
-        // First detach the tag from its current parent
-        const detachResponse = await fetch(`/tags/${draggedTagId}/set_parent`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'parent_id': ''  // Empty string to indicate detachment
-            }).toString()
-        })
-
-        if (!detachResponse.ok) {
-            throw new Error(`Detach failed: ${detachResponse.statusText}`)
-        }
-
-        // Then attach it to the new parent
-        const attachResponse = await fetch(`/tags/${draggedTagId}/set_parent`, {
+        // Make a single request to set the new parent
+        const response = await fetch(`/tags/${draggedTagId}/set_parent`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -100,8 +85,8 @@ export default class extends Controller {
             }).toString()
         })
 
-        if (!attachResponse.ok) {
-            throw new Error(`Move failed: ${attachResponse.statusText}`)
+        if (!response.ok) {
+            throw new Error(`Move failed: ${response.statusText}`)
         }
 
         // Reload the page to show the updated hierarchy

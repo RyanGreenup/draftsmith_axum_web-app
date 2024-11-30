@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct SetParentRequest {
-    parent_id: Option<i32>,
+    parent_id: Option<String>, // Change to String to handle empty string from form
 }
 
 #[axum::debug_handler]
@@ -84,8 +84,13 @@ pub async fn route_set_parent(
         }
     }
 
+    // Convert empty string to None, otherwise parse the string to i32
+    let parent_id = form.parent_id
+        .filter(|s| !s.is_empty())
+        .map(|s| s.parse::<i32>().unwrap_or(0));
+
     // If a new parent is specified, attach to it
-    if let Some(parent_id) = form.parent_id {
+    if let Some(parent_id) = parent_id {
         match attach_child_tag(&state.api_addr, parent_id, child_id).await {
             Ok(_) => {
                 session
