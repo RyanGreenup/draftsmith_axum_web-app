@@ -29,7 +29,7 @@ use crate::state::AppState;
 use crate::static_files::build_static_routes;
 use axum::extract::State;
 use axum::{
-    extract::{Path, DefaultBodyLimit},DefaultBodyLimit
+    extract::{Path, DefaultBodyLimit},
     routing::{get, post},
     Router,
 };
