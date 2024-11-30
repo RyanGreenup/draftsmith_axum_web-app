@@ -70,31 +70,46 @@ export default class extends Controller {
 
     // Don't do anything if dropping on itself
     if (draggedTagId === targetTagId) {
-      return
+        return
     }
 
     try {
-      // Make the API call to set the parent
-      const response = await fetch(`/tags/${draggedTagId}/set_parent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          'parent_id': targetTagId
-        }).toString()
-      })
+        // First detach the tag from its current parent
+        const detachResponse = await fetch(`/tags/${draggedTagId}/set_parent`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'parent_id': ''  // Empty string to indicate detachment
+            }).toString()
+        })
 
-      if (!response.ok) {
-        throw new Error(`Move failed: ${response.statusText}`)
-      }
+        if (!detachResponse.ok) {
+            throw new Error(`Detach failed: ${detachResponse.statusText}`)
+        }
 
-      // Reload the page to show the updated hierarchy
-      window.location.reload()
+        // Then attach it to the new parent
+        const attachResponse = await fetch(`/tags/${draggedTagId}/set_parent`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'parent_id': targetTagId
+            }).toString()
+        })
+
+        if (!attachResponse.ok) {
+            throw new Error(`Move failed: ${attachResponse.statusText}`)
+        }
+
+        // Reload the page to show the updated hierarchy
+        window.location.reload()
 
     } catch (error) {
-      console.error('Error moving tag:', error)
-      window.location.reload()
+        console.error('Error moving tag:', error)
+        window.location.reload()
     }
   }
 
