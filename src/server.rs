@@ -1,5 +1,5 @@
-use axum::response::Response;
-use hyper::Body;
+use axum::response::{IntoResponse, Response};
+use axum::body::Bytes;
 use reqwest::Client;
 use crate::routes::{
     notes::{
@@ -91,7 +91,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
 async fn route_serve_asset(
     State(state): State<AppState>,
     Path(file_path): Path<String>,
-) -> Response<Body> {
+) -> impl IntoResponse {
     let client = Client::new();
     let asset_url = format!("{}/assets/download/{}", state.api_addr, file_path);
 
@@ -104,13 +104,15 @@ async fn route_serve_asset(
             Response::builder()
                 .status(status)
                 .header("content-type", headers.get("content-type").unwrap_or(&"application/octet-stream".parse().unwrap()))
-                .body(Body::from(bytes))
+                .body(bytes)
                 .unwrap_or_default()
+                .into_response()
         },
         Err(_) => Response::builder()
             .status(404)
-            .body(Body::from("Asset not found"))
+            .body(Bytes::from("Asset not found"))
             .unwrap_or_default()
+            .into_response()
     }
 }
 
