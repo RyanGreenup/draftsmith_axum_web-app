@@ -107,10 +107,12 @@ export default class extends Controller {
   }
 
   handleBodyDragOver(event) {
-    // Only allow dropping outside the tree
-    if (!event.target.closest('.menu')) {
-      event.preventDefault()
-      document.body.classList.add('detach-drop-zone')
+    // Only allow dropping outside the menu and drawer
+    if (!event.target.closest('.menu') && !event.target.closest('.drawer-side')) {
+        event.preventDefault()
+        document.body.classList.add('detach-drop-zone')
+    } else {
+        document.body.classList.remove('detach-drop-zone')
     }
   }
 
