@@ -5,6 +5,7 @@ use crate::routes::{
         note_move::{route_detach_note_post, route_move_note_get, route_move_note_post},
         view::route_note,
         delete::route_delete,
+        tags::{route_assign_tags_get, route_assign_tags_post},
     },
     tags::{
         manage_all_tags::route_manage_tags,
@@ -77,6 +78,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
             get(route_move_note_get).post(route_move_note_post),
         )
         .route("/note/:id/detach", post(route_detach_note_post))
+        .route("/assign_tags/:id", get(route_assign_tags_get).post(route_assign_tags_post))
         .layer(CompressionLayer::new())
         .with_state(state)
         .layer(session_layer);
