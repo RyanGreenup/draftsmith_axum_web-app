@@ -1,12 +1,12 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, State, Query},
     response::{Html, Redirect},
     Form,
 };
 use draftsmith_rest_api::client::tags::{list_tags, list_note_tags, attach_tag_to_note, detach_tag_from_note};
 use crate::state::AppState;
 use crate::flash::{FlashMessage, FlashMessageStore};
-use crate::template_context::BodyTemplateContext;
+use crate::template_context::{BodyTemplateContext, PaginationParams}; 
 use crate::templates::{handle_template_error, ENV};
 use minijinja::context;
 use serde::Deserialize;
@@ -25,8 +25,11 @@ pub async fn route_assign_tags_get(
 ) -> Html<String> {
     let api_addr = state.api_addr.clone();
     
+    // Create empty pagination params
+    let pagination = Query(PaginationParams::default());
+    
     // Get the body context
-    let body_handler = match BodyTemplateContext::new(session, None, api_addr.clone(), None).await {
+    let body_handler = match BodyTemplateContext::new(session, pagination, api_addr.clone(), None).await {
         Ok(handler) => handler,
         Err(e) => {
             eprintln!("Failed to create body handler: {:#?}", e);
@@ -58,10 +61,10 @@ pub async fn route_assign_tags_get(
     });
 
     let ctx = context! {
-        ..body_handler.ctx,
-        note_id => note_id,
-        all_tags => all_tags,
-        note_tags => note_tags,
+        body_handler.ctx,
+        note_id: note_id,
+        all_tags: all_tags,
+        note_tags: note_tags,
     };
 
     let rendered = template.render(ctx).unwrap_or_else(handle_template_error);
@@ -76,8 +79,10 @@ pub async fn route_assign_tags_post(
 ) -> Redirect {
     let api_addr = state.api_addr.clone();
 
-    let result = match form.action.as_str() {
-        "attach" => attach_tag_to_note(&api_addr, note_id, form.tag_id).await,
+    let result: Result<(), _> = match form.action.as_str() {
+        "attach" => {
+            attach_tag_to_note(&api_addr, note_id, form.tag_id).await.map(|_| ())
+        }
         "detach" => detach_tag_from_note(&api_addr, note_id, form.tag_id).await,
         _ => {
             session
