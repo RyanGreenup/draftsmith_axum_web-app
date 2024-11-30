@@ -6,7 +6,7 @@ use minijinja;
 use chrono::{DateTime, Utc};
 use tower_sessions::Session;
 use crate::flash::{FlashMessage, FlashMessageStore};
-use std::path::Path;
+use std::path::Path as StdPath;
 use crate::templates::{self, ENV, handle_template_error};
 use crate::template_context::{BodyTemplateContext, PaginationParams};
 use draftsmith_rest_api::client::assets::{list_assets, create_asset, update_asset};
@@ -105,7 +105,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .layer(session_layer);
 
 async fn route_serve_asset(
-    State(state): State<AppState>,
+    State(state): State<AppState>, 
     Path(file_path): Path<String>,
     headers: axum::http::HeaderMap,
 ) -> Response {
@@ -312,7 +312,7 @@ async fn route_upload_asset(
     };
 
     // Create temporary directory if it doesn't exist
-    let temp_dir = Path::new("temp");
+    let temp_dir = StdPath::new("temp");
     if let Err(e) = std::fs::create_dir_all(temp_dir) {
         let _ = session.set_flash(FlashMessage::error(&format!("Failed to create temp directory: {}", e))).await;
         return Response::builder()
