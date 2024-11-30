@@ -5781,8 +5781,16 @@ html:has(.drawer-open.drawer-open) {
   border-width: 1px;
 }
 
+.border-2 {
+  border-width: 2px;
+}
+
 .border-t {
   border-top-width: 1px;
+}
+
+.border-dashed {
+  border-style: dashed;
 }
 
 .border-gray-200 {
@@ -6001,11 +6009,6 @@ html:has(.drawer-open.drawer-open) {
 .text-primary {
   --tw-text-opacity: 1;
   color: var(--fallback-p,oklch(var(--p)/var(--tw-text-opacity)));
-}
-
-.text-success {
-  --tw-text-opacity: 1;
-  color: var(--fallback-su,oklch(var(--su)/var(--tw-text-opacity)));
 }
 
 .text-white {
