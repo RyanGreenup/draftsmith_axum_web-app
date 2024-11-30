@@ -33,7 +33,7 @@
         <h3 class="text-lg font-medium mb-3">Available Tags</h3>
         <div class="flex flex-wrap gap-2">
             {% for tag in all_tags %}
-                {% if not note_tags | map(attribute="tag_id") | list | contains(tag.id) %}
+                {% if not (note_tags | map(attribute="tag_id") | list | contains(tag.id)) %}
                     <form action="/assign_tags/{{ note_id }}" method="POST" class="inline">
                         {% include 'csrf_token.html' %}
                         <input type="hidden" name="tag_id" value="{{ tag.id }}">
