@@ -1,8 +1,8 @@
 use axum::response::{IntoResponse, Response};
 use axum::body::Body;
-use axum::http::{StatusCode, HeaderMap, HeaderValue};
-use axum::extract::TypedHeader;
-use axum::headers::{IfNoneMatch, IfModifiedSince}; 
+use axum::http::StatusCode;
+use axum::headers::{HeaderMap, IfNoneMatch, IfModifiedSince};
+use axum::TypedHeader;
 use reqwest::Client;
 use chrono::{DateTime, Utc};
 use crate::routes::{
@@ -97,7 +97,7 @@ async fn route_serve_asset(
     Path(file_path): Path<String>,
     if_none_match: Option<TypedHeader<IfNoneMatch>>,
     if_modified_since: Option<TypedHeader<IfModifiedSince>>,
-) -> impl IntoResponse {
+) -> Response {
     let client = Client::new();
     let asset_url = format!("{}/assets/download/{}", state.api_addr, file_path);
 
