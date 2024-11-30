@@ -35,7 +35,7 @@ class KeyboardShortcuts {
                 selector: 'a[data-create-link]'
             },
             lambda: {
-                key: 'Backquote',
+                key: ['Backquote', '`'],  // Accept both key names
                 modifier: 'Alt',
                 action: () => this.insertTextAtCaret('λ#()#')
             },
@@ -60,8 +60,8 @@ class KeyboardShortcuts {
                 (shortcut.modifier === 'Alt' && event.altKey) ||
                 (shortcut.modifier === 'Control' && event.ctrlKey)
             ) {
-                if (event.key === shortcut.key || 
-                    event.key.toLowerCase() === shortcut.key.toLowerCase()) {
+                const keys = Array.isArray(shortcut.key) ? shortcut.key : [shortcut.key];
+                if (keys.some(k => event.key === k || event.key.toLowerCase() === k.toLowerCase())) {
                     event.preventDefault();
                     
                     if (shortcut.action) {
