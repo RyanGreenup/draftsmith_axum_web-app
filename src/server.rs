@@ -7,7 +7,7 @@ use axum::extract::Multipart;
 use minijinja;
 use chrono::{DateTime, Utc};
 use tower_sessions::Session;
-use crate::template;
+use crate::templates;
 use crate::routes::{
     notes::{
         create::route_create,
@@ -252,7 +252,7 @@ async fn route_upload_asset_form(
         "tree_html": tree_html,
     }));
 
-    template::render_template(template_name, context)
+    templates::render_template(template_name, context)
 }
 
 async fn route_upload_asset(
@@ -271,8 +271,15 @@ async fn route_upload_asset(
 
     let mut file_part = None;
     let mut location = None;
-
+    
+    // Process all fields and store them
+    let mut fields = Vec::new();
     while let Ok(Some(field)) = multipart.next_field().await {
+        fields.push(field);
+    }
+
+    // Now process the collected fields
+    for field in fields {
         match field.name() {
             Some("file") => {
                 file_part = Some(field);
