@@ -74,7 +74,7 @@
                       {% for potential_parent in tags %}
                         {% if potential_parent.id != tag.id %}
                           <option value="{{ potential_parent.id }}" 
-                                  {% if tag.parent_id is defined and tag.parent_id == potential_parent.id %}selected{% endif %}>
+                                  {% if tag.parent_id == potential_parent.id %}selected{% endif %}>
                             {{ potential_parent.name }}
                           </option>
                         {% endif %}
