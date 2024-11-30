@@ -3,20 +3,31 @@ import { Controller } from "/static/js/stimulus/stimulus.js"
 export default class extends Controller {
     connect() {
         console.log("KeybindingController connected")
-        document.addEventListener('keydown', this.handleKeyPress.bind(this))
+        // Use window instead of document to ensure global capture
+        window.addEventListener('keydown', this.handleKeyPress.bind(this))
     }
 
     disconnect() {
-        document.removeEventListener('keydown', this.handleKeyPress.bind(this))
+        window.removeEventListener('keydown', this.handleKeyPress.bind(this))
     }
 
     handleKeyPress(event) {
-        // Ctrl+E to edit
-        if (event.ctrlKey && event.key === 'e') {
-            event.preventDefault()
-            const editButton = document.querySelector('a[href$="/edit"]')
+        console.log("Key pressed:", {
+            key: event.key,
+            ctrlKey: event.ctrlKey,
+            altKey: event.altKey
+        });
+
+        // Check for Ctrl+E (case-insensitive)
+        if (event.ctrlKey && (event.key.toLowerCase() === 'e')) {
+            console.log("Ctrl+E detected");
+            event.preventDefault();
+            const editButton = document.querySelector('a[href$="/edit"]');
             if (editButton) {
-                editButton.click()
+                console.log("Edit button found, clicking");
+                editButton.click();
+            } else {
+                console.log("No edit button found");
             }
         }
 
