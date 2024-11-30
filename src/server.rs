@@ -8,6 +8,7 @@ use tower_sessions::Session;
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::templates::{self, ENV, handle_template_error};
 use crate::template_context::{BodyTemplateContext, PaginationParams};
+use draftsmith_rest_api::client::assets::{list_assets, create_asset, update_asset};
 use crate::routes::{
     notes::{
         create::route_create,
@@ -323,10 +324,10 @@ async fn route_upload_asset(
 
     // Build the upload URL
     let upload_url = format!("{}/assets/upload", state.api_addr);
-    
+
     // Create form with the correct field name and content type
     let form = reqwest::multipart::Form::new()
-        .part("file", 
+        .part("file",
             reqwest::multipart::Part::bytes(file_bytes.to_vec())
                 .file_name(location.unwrap_or(filename.clone()))
                 .mime_str("application/octet-stream").unwrap()
@@ -336,7 +337,7 @@ async fn route_upload_asset(
     match client.post(&upload_url)
         .multipart(form)
         .send()
-        .await 
+        .await
     {
         Ok(response) => {
             match response.status() {
@@ -347,8 +348,8 @@ async fn route_upload_asset(
                             let asset_id = json.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
                             let server_filename = json.get("location").and_then(|v| v.as_str()).unwrap_or("unknown");
                             let success_msg = format!(
-                                "File uploaded successfully. asset_id: {}, server_filename: {}", 
-                                asset_id, 
+                                "File uploaded successfully. asset_id: {}, server_filename: {}",
+                                asset_id,
                                 server_filename
                             );
                             let _ = session.set_flash(FlashMessage::success(&success_msg)).await;
