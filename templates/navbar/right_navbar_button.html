@@ -24,7 +24,7 @@
           {{ link_item("/create/" ~ note.id, "→ Create Subpage") }}
           {{ link_item("/create/" ~ note.id ~ "?as_sibling=true", "↓ Create Sibling") }}
           {{ link_item("/edit/" ~ note.id, "Edit") }}
-          {{ link_item("/manage_tags/" ~ note.id, "Assign Tags") }}
+          {{ link_item("/assign_tags/" ~ note.id, "Assign Tags") }}
           {% endif %}
           {{ link_item("/recent", "Recent") }}
           {% if note %}

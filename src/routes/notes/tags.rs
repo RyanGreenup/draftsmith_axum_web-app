@@ -1,16 +1,16 @@
 use axum::{
     extract::{Path, State, Query},
-    response::{Html, Redirect},
+    response::{Html, Redirect, Response, IntoResponse},
     Form,
 };
 use draftsmith_rest_api::client::tags::{list_tags, list_note_tags, attach_tag_to_note, detach_tag_from_note};
 use crate::state::AppState;
 use crate::flash::{FlashMessage, FlashMessageStore};
-use crate::template_context::{BodyTemplateContext, PaginationParams}; 
-use crate::templates::{handle_template_error, ENV};
+use crate::template_context::{NoteTemplateContext, PaginationParams};
 use minijinja::context;
 use serde::Deserialize;
 use tower_sessions::Session;
+use crate::templates::{handle_not_found, handle_template_error, ENV};
 
 #[derive(Debug, Deserialize)]
 pub struct TagActionForm {
@@ -22,20 +22,20 @@ pub async fn route_assign_tags_get(
     session: Session,
     State(state): State<AppState>,
     Path(note_id): Path<i32>,
-) -> Html<String> {
+    Query(params): Query<PaginationParams>,
+) -> Response {
     let api_addr = state.api_addr.clone();
-    
-    // Create empty pagination params
-    let pagination = Query(PaginationParams::default());
-    
-    // Get the body context
-    let body_handler = match BodyTemplateContext::new(session, pagination, api_addr.clone(), None).await {
-        Ok(handler) => handler,
-        Err(e) => {
-            eprintln!("Failed to create body handler: {:#?}", e);
-            return Html(String::from("<h1>Error getting page data</h1>"));
-        }
-    };
+
+    // Get note data
+    let note_handler =
+        match NoteTemplateContext::new(session.clone(), Query(params), api_addr.clone(), note_id).await {
+            Ok(data) => data,
+            Err(e) => {
+                eprintln!("Failed to get note data: {:#}", e);
+                return handle_not_found(session).await.into_response();
+            }
+        };
+
 
     // Get all available tags
     let all_tags = list_tags(&api_addr)
@@ -60,15 +60,16 @@ pub async fn route_assign_tags_get(
         panic!("Failed to load template. Error: {:#}", e);
     });
 
-    let ctx = context! {
-        body_handler.ctx,
-        note_id: note_id,
-        all_tags: all_tags,
-        note_tags: note_tags,
-    };
+
+    let ctx = context! { ..note_handler.ctx, ..context! {
+        note_id => note_id,
+        all_tags => all_tags,
+        note_tags => note_tags,
+    }};
+
 
     let rendered = template.render(ctx).unwrap_or_else(handle_template_error);
-    Html(rendered)
+    Html(rendered).into_response()
 }
 
 pub async fn route_assign_tags_post(

@@ -44,6 +44,11 @@ pub static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
         Ok(value.to_string())
     }
 
+
+    // Add the contains filter
+    env.add_filter("contains", |list: Vec<i32>, item: i32| {
+        list.contains(&item)
+    });
     env.add_filter("datetime", format_datetime);
 
     env

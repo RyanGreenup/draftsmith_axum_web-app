@@ -14,16 +14,6 @@ use minijinja::context;
 use serde::Deserialize;
 use tower_sessions::Session;
 
-pub fn setup_template_env() -> Environment<'static> {
-    let mut env = Environment::new();
-    
-    // Add the contains filter
-    env.add_filter("contains", |list: Vec<i32>, item: i32| {
-        list.contains(&item)
-    });
-
-    env
-}
 
 #[derive(Debug, Deserialize)]
 pub struct PaginationParams {
