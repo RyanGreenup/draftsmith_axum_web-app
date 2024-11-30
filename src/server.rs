@@ -248,11 +248,15 @@ async fn route_upload_asset_form(
     let template_name = "body/upload_asset.html";
     let tree_html = ""; // TODO: Implement sidebar tree html generation
     
+    // Get CSRF token from session
+    let csrf_token = templates::get_csrf_token(&session).await;
+    
     let context = minijinja::value::Value::from_serialize(&serde_json::json!({
         "tree_html": tree_html,
+        "csrf_token": csrf_token,
     }));
 
-    templates::render_template(template_name, context)
+    Html(templates::render_template(template_name, context)).into_response()
 }
 
 async fn route_upload_asset(
