@@ -27,14 +27,14 @@
 <script type="module">
   import { Application } from "/static/js/stimulus/stimulus.js"
   import TreeController from "/static/js/controllers/tree_controller.js"
-  import TreeController from "/static/js/controllers/tag_tree_controller.js"
-
+  import TagTreeController from "/static/js/controllers/tag_tree_controller.js"
 
   window.Stimulus = Application.start()
   Stimulus.register("tree", TreeController)
+  Stimulus.register("tag-tree", TagTreeController)
 
   // Add debug logging
-  console.log("Stimulus initialized with TreeController")
+  console.log("Stimulus initialized with TreeController and TagTreeController")
 </script>
 
 
