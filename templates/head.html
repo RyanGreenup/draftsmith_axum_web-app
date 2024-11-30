@@ -28,13 +28,15 @@
   import { Application } from "/static/js/stimulus/stimulus.js"
   import TreeController from "/static/js/controllers/tree_controller.js"
   import TagTreeController from "/static/js/controllers/tag_tree_controller.js"
+  import KeybindingController from "/static/js/controllers/keybinding_controller.js"
 
   window.Stimulus = Application.start()
   Stimulus.register("tree", TreeController)
   Stimulus.register("tag-tree", TagTreeController)
+  Stimulus.register("keybinding", KeybindingController)
 
   // Add debug logging
-  console.log("Stimulus initialized with TreeController and TagTreeController")
+  console.log("Stimulus initialized with TreeController, TagTreeController, and KeybindingController")
 </script>
 
 
