@@ -65,26 +65,38 @@
                 </form>
               </td>
               <td class="py-4">
-                <form method="POST" action="/tag/{{ tag.id }}/set_parent" 
-                      class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-                  {% include 'csrf_token.html' %}
-                  <select name="parent_id" class="select select-bordered select-sm max-w-xs">
-                    <option value="">No Parent</option>
-                    {% for potential_parent in tags %}
-                      {% if potential_parent.id != tag.id %}
-                        <option value="{{ potential_parent.id }}" 
-                                {% if tag.parent_id is defined and tag.parent_id == potential_parent.id %}selected{% endif %}>
-                          {{ potential_parent.name }}
-                        </option>
-                      {% endif %}
-                    {% endfor %}
-                  </select>
-                  <button type="submit" class="btn btn-sm btn-ghost">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
-                    </svg>
-                  </button>
-                </form>
+                <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                  <form method="POST" action="/tag/{{ tag.id }}/set_parent" 
+                        class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                    {% include 'csrf_token.html' %}
+                    <select name="parent_id" class="select select-bordered select-sm max-w-xs">
+                      <option value="">No Parent</option>
+                      {% for potential_parent in tags %}
+                        {% if potential_parent.id != tag.id %}
+                          <option value="{{ potential_parent.id }}" 
+                                  {% if tag.parent_id is defined and tag.parent_id == potential_parent.id %}selected{% endif %}>
+                            {{ potential_parent.name }}
+                          </option>
+                        {% endif %}
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-ghost" title="Set parent">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                  </form>
+                  {% if tag.parent_id is defined and tag.parent_id %}
+                    <form method="POST" action="/tag/{{ tag.id }}/unset_parent">
+                      {% include 'csrf_token.html' %}
+                      <button type="submit" class="btn btn-sm btn-ghost" title="Detach from parent">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
+                        </svg>
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
               </td>
               <td class="py-4">
                 <div class="flex flex-col sm:flex-row gap-2 justify-center items-center">
