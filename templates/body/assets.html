@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4">
+  <div class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold">Assets</h1>
+    <a href="/upload_asset" class="btn btn-primary">Upload New Asset</a>
+  </div>
+  
+  <div class="overflow-x-auto">
+    <table class="table w-full">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Location</th>
+          <th>Description</th>
+          <th>Created At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for asset in assets %}
+        <tr>
+          <td>{{ asset.id }}</td>
+          <td>
+            <a href="/m/{{ asset.location }}" class="link" target="_blank">
+              {{ asset.location }}
+            </a>
+          </td>
+          <td>{{ asset.description | default(value="", boolean=true) }}</td>
+          <td>{{ asset.created_at | datetime }}</td>
+          <td class="flex gap-2">
+            <form action="/asset/{{ asset.id }}/edit" method="get" class="inline">
+              <button type="submit" class="btn btn-sm btn-primary">Edit</button>
+            </form>
+            <form action="/asset/{{ asset.id }}/delete" method="post" class="inline" 
+                  onsubmit="return confirm('Are you sure you want to delete this asset?');">
+              <button type="submit" class="btn btn-sm btn-error">Delete</button>
+            </form>
+            <div class="text-sm text-gray-600">
+              <code>![{{ asset.location }}](/m/{{ asset.location }})</code>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
