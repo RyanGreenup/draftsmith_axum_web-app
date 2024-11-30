@@ -54,6 +54,16 @@ pub static ENV: Lazy<Environment<'static>> = Lazy::new(|| {
     env
 });
 
+pub fn render_template(template_name: &str, context: minijinja::value::Value) -> String {
+    match ENV.get_template(template_name) {
+        Ok(tmpl) => match tmpl.render(context) {
+            Ok(html) => html,
+            Err(err) => handle_template_error(err),
+        },
+        Err(err) => handle_template_error(err),
+    }
+}
+
 pub async fn handle_not_found(session: Session) -> Redirect {
     session
         .set_flash(FlashMessage::error("Page not found"))

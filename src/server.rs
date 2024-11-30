@@ -261,28 +261,20 @@ async fn route_upload_asset(
 ) -> impl IntoResponse {
     let client = match Client::builder().build() {
         Ok(client) => client,
-        Err(_) => {
-            return Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(Body::from("Failed to initialize HTTP client"))
-                .unwrap_or_else(|_| internal_server_error_response());
-        }
+        Err(_) => return internal_server_error_response(),
     };
 
-    let mut file_part = None;
+    let mut file_bytes = None;
+    let mut filename = None;
     let mut location = None;
-    
-    // Process all fields and store them
-    let mut fields = Vec::new();
-    while let Ok(Some(field)) = multipart.next_field().await {
-        fields.push(field);
-    }
 
-    // Now process the collected fields
-    for field in fields {
+    while let Ok(Some(field)) = multipart.next_field().await {
         match field.name() {
             Some("file") => {
-                file_part = Some(field);
+                if let Ok(bytes) = field.bytes().await {
+                    file_bytes = Some(bytes);
+                    filename = field.file_name().map(String::from);
+                }
             }
             Some("location") => {
                 if let Ok(value) = field.text().await {
@@ -295,32 +287,26 @@ async fn route_upload_asset(
         }
     }
 
-    let file = match file_part {
-        Some(file) => file,
-        None => {
-            return Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .body(Body::from("No file provided"))
-                .unwrap_or_else(|_| internal_server_error_response());
-        }
+    let file_bytes = match file_bytes {
+        Some(bytes) => bytes,
+        None => return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from("No file provided"))
+            .unwrap_or_else(|_| internal_server_error_response()),
     };
 
     // Prepare the multipart request to the API
     let upload_url = format!("{}/assets/upload", state.api_addr);
-    let filename = location.or_else(|| file.file_name().map(String::from));
     
-    let mut form = reqwest::multipart::Form::new();
-    
-    // Add the file to the form
-    if let Ok(data) = file.bytes().await {
-        let part = reqwest::multipart::Part::bytes(data.to_vec())
-            .file_name(filename.clone().unwrap_or_else(|| "file".to_string()));
-        form = form.part("file", part);
-    }
+    // Use location or filename, with a fallback
+    let final_filename = location.or(filename).unwrap_or_else(|| "uploaded_file".to_string());
 
-    if let Some(name) = filename {
-        form = form.text("location", name);
-    }
+    let form = reqwest::multipart::Form::new()
+        .part("file", 
+            reqwest::multipart::Part::bytes(file_bytes.to_vec())
+                .file_name(final_filename.clone())
+        )
+        .text("location", final_filename);
 
     match client.post(&upload_url)
         .multipart(form)
@@ -331,7 +317,7 @@ async fn route_upload_asset(
             if response.status().is_success() {
                 Response::builder()
                     .status(StatusCode::FOUND)
-                    .header("Location", "/")  // Redirect to home page after successful upload
+                    .header("Location", "/")
                     .body(Body::empty())
                     .unwrap_or_else(|_| internal_server_error_response())
             } else {
