@@ -43,7 +43,7 @@
 
       <div class="divider"></div>
 
-      <div class="overflow-y-auto">
+      <div class="overflow-y-auto" data-controller="tag-tree">
         <ul class="menu bg-base-200 rounded-box w-full">
           {% if tag_tree %}
             {{ render_tag_tree(tag_tree) }}
