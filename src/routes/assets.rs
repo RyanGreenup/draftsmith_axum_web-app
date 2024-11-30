@@ -50,6 +50,23 @@ pub async fn route_list_assets(
     Html(rendered)
 }
 
+pub async fn route_edit_asset(
+    session: Session,
+    State(state): State<AppState>,
+    Path(asset_id): Path<i32>,
+) -> impl IntoResponse {
+    let _ = session.set_flash(FlashMessage::info(
+        "Editing assets is not currently supported. Please delete this asset and upload a new one if you need to make changes."
+    )).await;
+
+    // Redirect back to assets list
+    Response::builder()
+        .status(StatusCode::FOUND)
+        .header("Location", "/assets")
+        .body(axum::body::Body::empty())
+        .unwrap()
+}
+
 pub async fn route_delete_asset(
     State(state): State<AppState>,
     Path(asset_id): Path<i32>,
