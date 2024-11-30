@@ -285,16 +285,16 @@ async fn route_upload_asset(
         }
     };
 
-    let mut file_bytes = None;
-    let mut filename = None;
+    // Process multipart form
+    let mut file_part = None;
     let mut location = None;
 
     while let Ok(Some(field)) = multipart.next_field().await {
         match field.name() {
             Some("file") => {
-                filename = field.file_name().map(String::from);
+                let filename = field.file_name().map(String::from);
                 if let Ok(bytes) = field.bytes().await {
-                    file_bytes = Some(bytes);
+                    file_part = Some((filename, bytes));
                 }
             }
             Some("location") => {
@@ -308,9 +308,10 @@ async fn route_upload_asset(
         }
     }
 
-    let file_bytes = match file_bytes {
-        Some(bytes) => bytes,
-        None => {
+    // Check if we got a file
+    let (filename, file_bytes) = match file_part {
+        Some((Some(name), bytes)) => (name, bytes),
+        _ => {
             let _ = session.set_flash(FlashMessage::error("No file provided")).await;
             return Response::builder()
                 .status(StatusCode::FOUND)
@@ -320,60 +321,45 @@ async fn route_upload_asset(
         }
     };
 
+    // Build the upload URL
     let upload_url = format!("{}/assets/upload", state.api_addr);
-    let final_filename = location.or(filename).unwrap_or_else(|| "uploaded_file".to_string());
+    
+    // Use location if provided, otherwise use original filename
+    let final_filename = location.unwrap_or(filename);
 
+    // Create multipart form for the API request
     let form = reqwest::multipart::Form::new()
-        .part("file",
+        .part("file", 
             reqwest::multipart::Part::bytes(file_bytes.to_vec())
                 .file_name(final_filename.clone())
-        )
-        .text("location", final_filename);
+        );
 
+    // Send the request to the API
     match client.post(&upload_url)
         .multipart(form)
         .send()
-        .await
+        .await 
     {
         Ok(response) => {
             let status = response.status();
-            match response.text().await {
-                Ok(text) => {
-                    if status.is_success() {
-                        let _ = session.set_flash(FlashMessage::success("File uploaded successfully")).await;
-                        Response::builder()
-                            .status(StatusCode::FOUND)
-                            .header("Location", "/upload_asset")
-                            .body(Body::empty())
-                            .unwrap_or_else(|_| internal_server_error_response())
-                    } else {
-                        let _ = session.set_flash(FlashMessage::error(&format!("Upload failed: {}", text))).await;
-                        Response::builder()
-                            .status(StatusCode::FOUND)
-                            .header("Location", "/upload_asset")
-                            .body(Body::empty())
-                            .unwrap_or_else(|_| internal_server_error_response())
-                    }
-                }
-                Err(_) => {
-                    let _ = session.set_flash(FlashMessage::error("Failed to read response from server")).await;
-                    Response::builder()
-                        .status(StatusCode::FOUND)
-                        .header("Location", "/upload_asset")
-                        .body(Body::empty())
-                        .unwrap_or_else(|_| internal_server_error_response())
-                }
+            if status.is_success() {
+                let _ = session.set_flash(FlashMessage::success(&format!("File '{}' uploaded successfully", final_filename))).await;
+            } else {
+                let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                let _ = session.set_flash(FlashMessage::error(&format!("Upload failed: {}", error_text))).await;
             }
         }
         Err(e) => {
             let _ = session.set_flash(FlashMessage::error(&format!("Upload failed: {}", e))).await;
-            Response::builder()
-                .status(StatusCode::FOUND)
-                .header("Location", "/upload_asset")
-                .body(Body::empty())
-                .unwrap_or_else(|_| internal_server_error_response())
         }
     }
+
+    // Always redirect back to the upload form
+    Response::builder()
+        .status(StatusCode::FOUND)
+        .header("Location", "/upload_asset")
+        .body(Body::empty())
+        .unwrap_or_else(|_| internal_server_error_response())
 }
 
 fn map_upstream_error(status: StatusCode) -> Response {
