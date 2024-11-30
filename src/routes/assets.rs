@@ -1,13 +1,13 @@
+use crate::state::AppState;
+use crate::template_context::{BodyTemplateContext, PaginationParams};
+use crate::templates::{handle_template_error, ENV};
 use axum::{
     extract::{Query, State},
     response::Html,
 };
-use tower_sessions::Session;
-use crate::state::AppState;
-use crate::template_context::{BodyTemplateContext, PaginationParams};
-use crate::templates::{ENV, handle_template_error};
 use draftsmith_rest_api::client::assets::list_assets;
 use minijinja::context;
+use tower_sessions::Session;
 
 pub async fn route_list_assets(
     session: Session,
@@ -17,13 +17,14 @@ pub async fn route_list_assets(
     let api_addr: String = state.api_addr.clone();
 
     // Get the body data
-    let body_handler = match BodyTemplateContext::new(session, Query(params), api_addr.clone(), None).await {
-        Ok(handler) => handler,
-        Err(e) => {
-            eprintln!("Failed to create body handler: {:#?}", e);
-            return Html(String::from("<h1>Error getting page data</h1>"));
-        }
-    };
+    let body_handler =
+        match BodyTemplateContext::new(session, Query(params), api_addr.clone(), None).await {
+            Ok(handler) => handler,
+            Err(e) => {
+                eprintln!("Failed to create body handler: {:#?}", e);
+                return Html(String::from("<h1>Error getting page data</h1>"));
+            }
+        };
 
     // Get assets list
     let assets = match list_assets(&api_addr, None).await {
@@ -38,10 +39,9 @@ pub async fn route_list_assets(
         panic!("Failed to load template. Error: {:#}", e);
     });
 
-    let ctx = context! {
-        ..body_handler.ctx,
+    let ctx = context! { ..body_handler.ctx, ..context! {
         assets => assets,
-    };
+    }};
 
     let rendered = template.render(ctx).unwrap_or_else(handle_template_error);
 
