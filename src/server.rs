@@ -1,8 +1,7 @@
 use axum::response::{IntoResponse, Response};
 use axum::body::Body;
 use axum::http::StatusCode;
-use axum::headers::{HeaderMap, IfNoneMatch, IfModifiedSince};
-use axum::TypedHeader;
+use axum::http::header::{IF_NONE_MATCH, IF_MODIFIED_SINCE};
 use reqwest::Client;
 use chrono::{DateTime, Utc};
 use crate::routes::{
@@ -95,19 +94,18 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
 async fn route_serve_asset(
     State(state): State<AppState>,
     Path(file_path): Path<String>,
-    if_none_match: Option<TypedHeader<IfNoneMatch>>,
-    if_modified_since: Option<TypedHeader<IfModifiedSince>>,
+    headers: axum::http::HeaderMap,
 ) -> Response {
     let client = Client::new();
     let asset_url = format!("{}/assets/download/{}", state.api_addr, file_path);
 
     // Forward conditional headers if present
     let mut request = client.get(&asset_url);
-    if let Some(etag) = if_none_match {
-        request = request.header("if-none-match", etag.encode());
+    if let Some(if_none_match) = headers.get(IF_NONE_MATCH) {
+        request = request.header(IF_NONE_MATCH, if_none_match);
     }
-    if let Some(modified_since) = if_modified_since {
-        request = request.header("if-modified-since", modified_since.encode());
+    if let Some(if_modified_since) = headers.get(IF_MODIFIED_SINCE) {
+        request = request.header(IF_MODIFIED_SINCE, if_modified_since);
     }
 
     match request.send().await {
