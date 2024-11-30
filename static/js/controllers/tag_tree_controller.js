@@ -58,7 +58,7 @@ export default class extends Controller {
 
   async handleDrop(event) {
     event.preventDefault()
-    
+
     const targetItem = event.target.closest('.collapse-title')
     if (!targetItem) return
 
