@@ -31,20 +31,7 @@
           {{ link_item("/note/" ~ note.id ~ "/move", "Move") }}
           {{ link_item("/manage_tags", "Manage Tags") }}
           <li>
-            <form
-              action="/note/{{note.id}}/delete"
-              method="POST"
-              class="w-full"
-              onsubmit="return confirm('Are you sure you want to delete this note? This action cannot be undone.');"
-            >
-              {% include 'csrf_token.html' %}
-              <button
-                type="submit"
-                class="btn btn-ghost btn-sm justify-start w-full text-left"
-              >
-                Delete Note
-              </button>
-            </form>
+            {{ link_item("/note/" ~ note.id ~ "/delete", "Delete Note") }}
           </li>
           {% endif %}
           </li>

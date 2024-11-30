@@ -14,6 +14,14 @@ pub async fn route_delete(
 ) -> Response {
     let api_addr: String = state.api_addr.clone();
 
+    // Add confirmation via query param
+    if !session.get::<bool>("confirm_delete").await.unwrap_or(false) {
+        session.insert("confirm_delete", true).await.unwrap();
+        return Redirect::to(&format!("/note/{id}")).into_response();
+    }
+    
+    session.remove::<bool>("confirm_delete").await.unwrap();
+
     match delete_note(&api_addr, id).await {
         Ok(_) => {
             session
