@@ -17,9 +17,13 @@ export default class extends Controller {
       item.addEventListener('dragleave', this.handleDragLeave.bind(this))
     })
 
-    // Add drop zone for detaching tags
-    document.body.addEventListener('dragover', this.handleBodyDragOver.bind(this))
-    document.body.addEventListener('drop', this.handleBodyDrop.bind(this))
+    // Add drop zone for detaching tags to the drawer-side
+    const drawerSide = document.querySelector('.drawer-side')
+    if (drawerSide) {
+        drawerSide.addEventListener('dragover', this.handleDrawerDragOver.bind(this))
+        drawerSide.addEventListener('dragleave', this.handleDrawerDragLeave.bind(this))
+        drawerSide.addEventListener('drop', this.handleDrawerDrop.bind(this))
+    }
   }
 
   handleDragStart(event) {
@@ -106,54 +110,31 @@ export default class extends Controller {
     }
   }
 
-  handleBodyDragOver(event) {
-    // Get coordinates of the drop zone
-    const dropZoneRect = {
-        bottom: window.innerHeight - 20,
-        top: window.innerHeight - 120,
-        left: (window.innerWidth - 200) / 2,
-        right: (window.innerWidth + 200) / 2
-    };
-
-    // Check if the drag is within the drop zone area
-    const isInDropZone = 
-        event.clientY >= dropZoneRect.top &&
-        event.clientY <= dropZoneRect.bottom &&
-        event.clientX >= dropZoneRect.left &&
-        event.clientX <= dropZoneRect.right;
-
-    // Only allow dropping in the specific drop zone area
-    if (isInDropZone && !event.target.closest('.menu') && !event.target.closest('.drawer-side')) {
-        event.preventDefault();
-        document.body.classList.add('detach-drop-zone');
-        if (!document.body.classList.contains('drag-hover')) {
-            document.body.classList.add('drag-hover');
-        }
-    } else {
-        document.body.classList.remove('detach-drop-zone', 'drag-hover');
+  handleDrawerDragOver(event) {
+    // Only show drop zone if not over a collapse-title
+    if (!event.target.closest('.collapse-title')) {
+        event.preventDefault()
+        const drawerSide = event.currentTarget
+        drawerSide.classList.add('detach-drop-zone', 'drag-hover')
     }
   }
 
-  async handleBodyDrop(event) {
-    const dropZoneRect = {
-        bottom: window.innerHeight - 20,
-        top: window.innerHeight - 120,
-        left: (window.innerWidth - 200) / 2,
-        right: (window.innerWidth + 200) / 2
-    };
+  handleDrawerDragLeave(event) {
+    // Only remove if we're leaving the drawer-side itself
+    if (event.target.classList.contains('drawer-side')) {
+        event.currentTarget.classList.remove('detach-drop-zone', 'drag-hover')
+    }
+  }
 
-    const isInDropZone = 
-        event.clientY >= dropZoneRect.top &&
-        event.clientY <= dropZoneRect.bottom &&
-        event.clientX >= dropZoneRect.left &&
-        event.clientX <= dropZoneRect.right;
+  async handleDrawerDrop(event) {
+    // Only process drop if not on a collapse-title
+    if (!event.target.closest('.collapse-title')) {
+        event.preventDefault()
+        const drawerSide = event.currentTarget
+        drawerSide.classList.remove('detach-drop-zone', 'drag-hover')
 
-    if (isInDropZone && !event.target.closest('.menu')) {
-        event.preventDefault();
-        document.body.classList.remove('detach-drop-zone', 'drag-hover');
-
-        const draggedTagId = event.dataTransfer.getData('text/plain');
-        if (!draggedTagId) return;
+        const draggedTagId = event.dataTransfer.getData('text/plain')
+        if (!draggedTagId) return
 
         try {
             const response = await fetch(`/tag/${draggedTagId}/unset_parent`, {
@@ -162,19 +143,19 @@ export default class extends Controller {
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'Accept': 'application/json',
                 }
-            });
+            })
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Detach failed: ${errorText}`);
+                const errorText = await response.text()
+                throw new Error(`Detach failed: ${errorText}`)
             }
 
-            window.location.href = '/manage_tags';
+            window.location.href = '/manage_tags'
 
         } catch (error) {
-            console.error('Error detaching tag:', error);
-            alert('Failed to detach tag: ' + error.message);
-            window.location.href = '/manage_tags';
+            console.error('Error detaching tag:', error)
+            alert('Failed to detach tag: ' + error.message)
+            window.location.href = '/manage_tags'
         }
     }
   }
