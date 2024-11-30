@@ -7,7 +7,8 @@ use axum::extract::Multipart;
 use minijinja;
 use chrono::{DateTime, Utc};
 use tower_sessions::Session;
-use crate::templates;
+use crate::templates::{self, ENV, handle_template_error};
+use crate::template_context::{BodyTemplateContext, PaginationParams};
 use crate::routes::{
     notes::{
         create::route_create,
@@ -95,7 +96,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/assign_tags/:id", get(route_assign_tags_get).post(route_assign_tags_post))
         .route("/m/*file_path", get(route_serve_asset))
         .route("/upload_asset",
-            get(route_upload_asset_form)
+            get(|session, state, query| route_upload_asset_form(session, state, query))
             .post(route_upload_asset)
         )
         .layer(CompressionLayer::new())
@@ -245,15 +246,27 @@ fn gateway_timeout_response() -> Response {
 async fn route_upload_asset_form(
     session: Session,
     State(state): State<AppState>,
-) -> impl IntoResponse {
-    let template_name = "body/upload_asset.html";
-    let tree_html = ""; // TODO: Implement sidebar tree html generation
+    Query(params): Query<PaginationParams>,
+) -> Html<String> {
+    let api_addr: String = state.api_addr.clone();
+    
+    // Get the body data
+    let body_handler = match BodyTemplateContext::new(session, Query(params), api_addr.clone(), None).await {
+        Ok(handler) => handler,
+        Err(e) => {
+            eprintln!("Failed to create body handler: {:#?}", e);
+            return Html(String::from("<h1>Error getting page data</h1>"));
+        }
+    };
 
-    let context = minijinja::value::Value::from_serialize(&serde_json::json!({
-        "tree_html": tree_html,
-    }));
+    let template = ENV.get_template("body/upload_asset.html").unwrap_or_else(|e| {
+        panic!("Failed to load template. Error: {:#}", e);
+    });
 
-    Html(templates::render_template(template_name, context)).into_response()
+    // Use the context from body_handler
+    let rendered = template.render(body_handler.ctx).unwrap_or_else(handle_template_error);
+
+    Html(rendered)
 }
 
 async fn route_upload_asset(
