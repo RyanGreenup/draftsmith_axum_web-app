@@ -1,9 +1,7 @@
-use axum::response::{IntoResponse, Response};
 use axum::body::Body;
 use axum::http::StatusCode;
 use axum::http::header::{IF_NONE_MATCH, IF_MODIFIED_SINCE};
 use reqwest::Client;
-use axum::extract::Multipart;
 use minijinja;
 use chrono::{DateTime, Utc};
 use tower_sessions::Session;
@@ -30,9 +28,8 @@ use crate::routes::{
 };
 use crate::state::AppState;
 use crate::static_files::build_static_routes;
-use axum::extract::State;
 use axum::{
-    extract::{Path, DefaultBodyLimit},
+    extract::{Path, DefaultBodyLimit, State, Multipart, Query},
     routing::{get, post},
     response::{Html, IntoResponse, Response},
     Router,
@@ -249,7 +246,7 @@ async fn route_upload_asset_form(
     Query(params): Query<PaginationParams>,
 ) -> Html<String> {
     let api_addr: String = state.api_addr.clone();
-    
+
     // Get the body data
     let body_handler = match BodyTemplateContext::new(session, Query(params), api_addr.clone(), None).await {
         Ok(handler) => handler,
@@ -258,6 +255,7 @@ async fn route_upload_asset_form(
             return Html(String::from("<h1>Error getting page data</h1>"));
         }
     };
+
 
     let template = ENV.get_template("body/upload_asset.html").unwrap_or_else(|e| {
         panic!("Failed to load template. Error: {:#}", e);
