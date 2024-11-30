@@ -352,10 +352,12 @@ async fn route_upload_asset(
     // Handle the result
     match result {
         Ok(asset) => {
+            let filename = asset.location.display().to_string();
+            let markdown = format!("![{}](/m/{})", filename, filename);
             let success_msg = format!(
-                "File uploaded successfully. asset_id: {}, server_filename: {}",
+                "File uploaded successfully. asset_id: {}\nUse this markdown to embed the file:\n```\n{}\n```",
                 asset.id,
-                asset.location.display()
+                markdown
             );
             let _ = session.set_flash(FlashMessage::success(&success_msg)).await;
         }
