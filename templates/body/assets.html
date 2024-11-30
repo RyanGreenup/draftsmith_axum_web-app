@@ -6,10 +6,9 @@
     <h1 class="text-2xl font-bold">Assets</h1>
     <a href="/upload_asset" class="btn btn-primary">Upload New Asset</a>
   </div>
-
-  <div class="overflow-x-auto">
-    <div class="dataTablesContainer">
-    <table class="table w-full">
+  
+  <div class="dataTablesContainer">
+    <table id="example" class="table w-full">
       <thead>
         <tr>
           <th>ID</th>
@@ -46,7 +45,6 @@
         {% endfor %}
       </tbody>
     </table>
-    </div>
   </div>
 </div>
 {% endblock %}
