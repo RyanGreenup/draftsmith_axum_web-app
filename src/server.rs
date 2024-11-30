@@ -271,9 +271,11 @@ async fn route_upload_asset(
     while let Ok(Some(field)) = multipart.next_field().await {
         match field.name() {
             Some("file") => {
+                // Get filename first, before consuming the field
+                filename = field.file_name().map(String::from);
+                // Then get bytes, which consumes the field
                 if let Ok(bytes) = field.bytes().await {
                     file_bytes = Some(bytes);
-                    filename = field.file_name().map(String::from);
                 }
             }
             Some("location") => {
