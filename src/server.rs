@@ -1,3 +1,6 @@
+use axum::response::Response;
+use hyper::Body;
+use reqwest::Client;
 use crate::routes::{
     notes::{
         create::route_create,
@@ -80,9 +83,36 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         )
         .route("/note/:id/detach", post(route_detach_note_post))
         .route("/assign_tags/:id", get(route_assign_tags_get).post(route_assign_tags_post))
+        .route("/m/*file_path", get(route_serve_asset))
         .layer(CompressionLayer::new())
         .with_state(state)
         .layer(session_layer);
+
+async fn route_serve_asset(
+    State(state): State<AppState>,
+    Path(file_path): Path<String>,
+) -> Response<Body> {
+    let client = Client::new();
+    let asset_url = format!("{}/assets/download/{}", state.api_addr, file_path);
+
+    match client.get(&asset_url).send().await {
+        Ok(response) => {
+            let status = response.status();
+            let headers = response.headers().clone();
+            let bytes = response.bytes().await.unwrap_or_default();
+            
+            Response::builder()
+                .status(status)
+                .header("content-type", headers.get("content-type").unwrap_or(&"application/octet-stream".parse().unwrap()))
+                .body(Body::from(bytes))
+                .unwrap_or_default()
+        },
+        Err(_) => Response::builder()
+            .status(404)
+            .body(Body::from("Asset not found"))
+            .unwrap_or_default()
+    }
+}
 
     // Do it!
     axum::serve(listener, app)
