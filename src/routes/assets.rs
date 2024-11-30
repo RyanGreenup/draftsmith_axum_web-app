@@ -2,12 +2,14 @@ use crate::state::AppState;
 use crate::template_context::{BodyTemplateContext, PaginationParams};
 use crate::templates::{handle_template_error, ENV};
 use axum::{
-    extract::{Query, State},
-    response::Html,
+    extract::{Path, Query, State},
+    response::{Html, Response, IntoResponse},
+    http::StatusCode,
 };
-use draftsmith_rest_api::client::assets::list_assets;
+use draftsmith_rest_api::client::assets::{list_assets, delete_asset};
 use minijinja::context;
 use tower_sessions::Session;
+use crate::flash::{FlashMessage, FlashMessageStore};
 
 pub async fn route_list_assets(
     session: Session,
@@ -46,4 +48,26 @@ pub async fn route_list_assets(
     let rendered = template.render(ctx).unwrap_or_else(handle_template_error);
 
     Html(rendered)
+}
+
+pub async fn route_delete_asset(
+    State(state): State<AppState>,
+    Path(asset_id): Path<i32>,
+    session: Session,
+) -> impl IntoResponse {
+    match delete_asset(&state.api_addr, asset_id).await {
+        Ok(()) => {
+            let _ = session.set_flash(FlashMessage::success("Asset deleted successfully")).await;
+        }
+        Err(e) => {
+            let _ = session.set_flash(FlashMessage::error(&format!("Failed to delete asset: {}", e))).await;
+        }
+    }
+
+    // Redirect back to assets list
+    Response::builder()
+        .status(StatusCode::FOUND)
+        .header("Location", "/assets")
+        .body(axum::body::Body::empty())
+        .unwrap()
 }

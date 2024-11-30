@@ -97,6 +97,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/assign_tags/:id", get(route_assign_tags_get).post(route_assign_tags_post))
         .route("/m/*file_path", get(route_serve_asset))
         .route("/assets", get(route_list_assets))
+        .route("/asset/:id/delete", post(route_delete_asset))
         .route("/upload_asset",
             get(|session, state, query| route_upload_asset_form(session, state, query))
             .post(route_upload_asset)
