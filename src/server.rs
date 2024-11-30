@@ -3,10 +3,10 @@ use axum::http::StatusCode;
 use axum::http::header::{IF_NONE_MATCH, IF_MODIFIED_SINCE};
 use reqwest::Client;
 use minijinja;
+use tempfile;
 use chrono::{DateTime, Utc};
 use tower_sessions::Session;
 use crate::flash::{FlashMessage, FlashMessageStore};
-use std::path::Path as StdPath;
 use crate::templates::{self, ENV, handle_template_error};
 use crate::template_context::{BodyTemplateContext, PaginationParams};
 use draftsmith_rest_api::client::assets::{list_assets, create_asset, update_asset};
@@ -311,22 +311,21 @@ async fn route_upload_asset(
         }
     };
 
-    // Create temporary directory if it doesn't exist
-    let temp_dir = StdPath::new("temp");
-    if let Err(e) = std::fs::create_dir_all(temp_dir) {
-        let _ = session.set_flash(FlashMessage::error(&format!("Failed to create temp directory: {}", e))).await;
-        return Response::builder()
-            .status(StatusCode::FOUND)
-            .header("Location", "/upload_asset")
-            .body(Body::empty())
-            .unwrap_or_else(|_| internal_server_error_response());
-    }
+    // Create a temporary file
+    let mut temp_file = match tempfile::NamedTempFile::new() {
+        Ok(file) => file,
+        Err(e) => {
+            let _ = session.set_flash(FlashMessage::error(&format!("Failed to create temporary file: {}", e))).await;
+            return Response::builder()
+                .status(StatusCode::FOUND)
+                .header("Location", "/upload_asset")
+                .body(Body::empty())
+                .unwrap_or_else(|_| internal_server_error_response());
+        }
+    };
 
-    // Create temporary file path
-    let temp_file_path = temp_dir.join(&filename);
-    
     // Write bytes to temporary file
-    if let Err(e) = std::fs::write(&temp_file_path, file_bytes) {
+    if let Err(e) = std::io::Write::write_all(&mut temp_file, &file_bytes) {
         let _ = session.set_flash(FlashMessage::error(&format!("Failed to write temporary file: {}", e))).await;
         return Response::builder()
             .status(StatusCode::FOUND)
@@ -338,16 +337,14 @@ async fn route_upload_asset(
     // Use create_asset function
     let result = create_asset(
         &state.api_addr,
-        &temp_file_path,
+        temp_file.path(),
         None, // no note_id
         None, // no description
         location, // optional custom filename
     ).await;
 
-    // Clean up temporary file
-    if let Err(e) = std::fs::remove_file(&temp_file_path) {
-        eprintln!("Failed to remove temporary file: {}", e);
-    }
+    // The temporary file will be automatically deleted when temp_file is dropped
+    // at the end of this function, no manual cleanup needed!
 
     // Handle the result
     match result {
