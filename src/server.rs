@@ -1,7 +1,10 @@
 use axum::response::{IntoResponse, Response};
 use axum::body::Body;
-use axum::http::StatusCode;
+use axum::http::{StatusCode, HeaderMap, HeaderValue};
+use axum::extract::TypedHeader;
+use axum::headers::{IfNoneMatch, IfModifiedSince}; 
 use reqwest::Client;
+use chrono::{DateTime, Utc};
 use crate::routes::{
     notes::{
         create::route_create,
@@ -92,24 +95,68 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
 async fn route_serve_asset(
     State(state): State<AppState>,
     Path(file_path): Path<String>,
+    if_none_match: Option<TypedHeader<IfNoneMatch>>,
+    if_modified_since: Option<TypedHeader<IfModifiedSince>>,
 ) -> impl IntoResponse {
     let client = Client::new();
     let asset_url = format!("{}/assets/download/{}", state.api_addr, file_path);
 
-    match client.get(&asset_url).send().await {
+    // Forward conditional headers if present
+    let mut request = client.get(&asset_url);
+    if let Some(etag) = if_none_match {
+        request = request.header("if-none-match", etag.encode());
+    }
+    if let Some(modified_since) = if_modified_since {
+        request = request.header("if-modified-since", modified_since.encode());
+    }
+
+    match request.send().await {
         Ok(response) => {
             let status = response.status();
             let headers = response.headers().clone();
+
+            // If API returns 304 Not Modified, return that directly
+            if status == StatusCode::NOT_MODIFIED {
+                return Response::builder()
+                    .status(StatusCode::NOT_MODIFIED)
+                    .body(Body::empty())
+                    .unwrap_or_default();
+            }
+
             let bytes = response.bytes().await.unwrap_or_default();
             
-            Response::builder()
+            let mut builder = Response::builder()
                 .status(status)
-                .header("content-type", headers.get("content-type").unwrap_or(&"application/octet-stream".parse().unwrap()))
-                .body(Body::from(bytes))
+                .header("content-type", headers.get("content-type")
+                    .unwrap_or(&"application/octet-stream".parse().unwrap()));
+
+            // Forward cache-related headers from API
+            for header in ["cache-control", "etag", "last-modified"] {
+                if let Some(value) = headers.get(header) {
+                    builder = builder.header(header, value);
+                }
+            }
+
+            // If API didn't provide cache headers, set reasonable defaults
+            if !headers.contains_key("cache-control") {
+                builder = builder.header("cache-control", "public, max-age=3600"); // Cache for 1 hour
+            }
+            if !headers.contains_key("etag") && !headers.contains_key("last-modified") {
+                // Generate simple etag from content length and last few bytes
+                let simple_etag = format!("W/\"{}-{}\"", 
+                    bytes.len(),
+                    bytes.iter().rev().take(4).map(|b| format!("{:02x}", b)).collect::<String>()
+                );
+                builder = builder.header("etag", simple_etag);
+            }
+
+            builder.body(Body::from(bytes))
                 .unwrap_or_default()
         },
         Err(_) => Response::builder()
             .status(StatusCode::NOT_FOUND)
+            .header("cache-control", "no-store")
+            .header("content-type", "text/plain")
             .body(Body::from("Asset not found"))
             .unwrap_or_default()
     }
