@@ -7,11 +7,8 @@
   class="inline"
   onsubmit="return confirm('Are you sure you want to delete this note?');"
 >
-  <input
-    type="hidden"
-    name="csrf_token"
-    value="ImYwNWFmMmE2ODEwZjIxNGI3ODAxZmM4ZjA3MWMyMWJmNmU2YmRlZjQi.Z0LTNw.uCCLmlztM7605G0ob83kLQW3LhY"
-  />
+
+  {% include 'csrf_token.html' %}
   <button type="submit" class="btn btn-error">Delete</button>
 </form>
 
