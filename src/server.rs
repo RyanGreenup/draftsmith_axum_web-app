@@ -11,7 +11,7 @@ use crate::routes::{
         manage_all_tags::route_manage_tags,
         create::route_create_tag,
         delete::route_delete_tag,
-        update::{route_update_tag, route_set_parent},
+        update::{route_update_tag, route_set_parent, route_unset_parent},
         list::route_list_tag,
     },
     recent::route_recent,
