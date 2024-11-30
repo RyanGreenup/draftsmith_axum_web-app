@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use tower_sessions::Session;
 use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::templates::{self, ENV, handle_template_error};
-use crate::routes::assets::route_list_assets;
+use crate::routes::assets::{route_list_assets, route_delete_asset};
 use crate::template_context::{BodyTemplateContext, PaginationParams};
 use draftsmith_rest_api::client::assets::{list_assets, create_asset, update_asset, delete_asset};
 use crate::routes::{
