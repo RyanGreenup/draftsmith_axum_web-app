@@ -1,6 +1,12 @@
 class KeyboardShortcuts {
     constructor() {
         this.shortcuts = {
+            // Help shortcut
+            help: {
+                key: '?',
+                modifier: 'Alt',
+                action: () => this.showShortcutsHelp()
+            },
             // Navigation shortcuts
             prevPage: {
                 key: 'ArrowLeft',
@@ -151,6 +157,85 @@ class KeyboardShortcuts {
         if (newIndex !== currentIndex) {
             window.location.href = noteLinks[newIndex].href;
         }
+    }
+
+    showShortcutsHelp() {
+        // Create help dialog HTML
+        const helpContent = `
+            <dialog id="shortcuts-help" class="modal modal-bottom sm:modal-middle">
+                <div class="modal-box">
+                    <h3 class="font-bold text-lg mb-4">Keyboard Shortcuts</h3>
+                    <table class="table table-zebra w-full">
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Shortcut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${this.generateShortcutsList()}
+                        </tbody>
+                    </table>
+                    <div class="modal-action">
+                        <form method="dialog">
+                            <button class="btn">Close</button>
+                        </form>
+                    </div>
+                </div>
+                <form method="dialog" class="modal-backdrop">
+                    <button>close</button>
+                </form>
+            </dialog>
+        `;
+
+        // Remove existing dialog if present
+        const existingDialog = document.getElementById('shortcuts-help');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+
+        // Add dialog to document
+        document.body.insertAdjacentHTML('beforeend', helpContent);
+
+        // Show the dialog
+        const dialog = document.getElementById('shortcuts-help');
+        dialog.showModal();
+    }
+
+    generateShortcutsList() {
+        return Object.entries(this.shortcuts)
+            .map(([name, shortcut]) => {
+                const keyName = Array.isArray(shortcut.key) 
+                    ? shortcut.key[0] 
+                    : shortcut.key;
+                const displayKey = this.formatKeyName(keyName);
+                const displayName = this.formatActionName(name);
+                return `
+                    <tr>
+                        <td>${displayName}</td>
+                        <td>${shortcut.modifier}+${displayKey}</td>
+                    </tr>
+                `;
+            })
+            .join('');
+    }
+
+    formatKeyName(key) {
+        const specialKeys = {
+            'ArrowLeft': '←',
+            'ArrowRight': '→',
+            'ArrowUp': '↑',
+            'ArrowDown': '↓',
+            'Backquote': '`'
+        };
+        return specialKeys[key] || key;
+    }
+
+    formatActionName(name) {
+        return name
+            .split(/(?=[A-Z])/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
     }
 }
 
