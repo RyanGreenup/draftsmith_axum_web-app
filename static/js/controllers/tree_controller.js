@@ -7,9 +7,6 @@ export default class extends Controller {
     // Track original states of details elements
     this.originalDetailsStates = new WeakMap()
 
-    // Add keyboard navigation
-    document.addEventListener('keydown', this.handleKeyNavigation.bind(this))
-
     // Initialize all note items as draggable
     this.element.querySelectorAll('.note-item').forEach(item => {
       console.log("Setting up draggable item:", item);
@@ -219,85 +216,4 @@ export default class extends Controller {
     }
   }
 
-  handleKeyNavigation(event) {
-    // Only handle Ctrl + arrow key combinations
-    if (!event.ctrlKey) return;
-
-    switch (event.key) {
-        case 'ArrowLeft':
-            event.preventDefault();
-            this.navigateToPage('prev');
-            break;
-        case 'ArrowRight':
-            event.preventDefault();
-            this.navigateToPage('next');
-            break;
-        case 'ArrowUp':
-            event.preventDefault();
-            this.navigateToNearestNote('prev');
-            break;
-        case 'ArrowDown':
-            event.preventDefault();
-            this.navigateToNearestNote('next');
-            break;
-    }
-  }
-
-  navigateToPage(direction) {
-    // Get current page from URL or data attribute
-    const urlParams = new URLSearchParams(window.location.search);
-    const currentPage = parseInt(urlParams.get('page')) || 1;
-
-    // Get total pages by counting the number of tree page elements
-    const treePages = document.querySelectorAll('.menu[data-controller="tree"]');
-    // const totalPages = treePages.length; // This seems wrong, it's always 0
-
-    // Calculate new page
-    let newPage;
-    if (direction === 'next') {
-        // newPage = Math.min(currentPage + 1, totalPages);
-        newPage = currentPage + 1;
-    } else {
-        newPage = Math.max(currentPage - 1, 1);
-    }
-
-    // Only navigate if page actually changes
-    if (newPage !== currentPage) {
-        // Get the current URL and update/add the page parameter
-        const url = new URL(window.location.href);
-        url.searchParams.set('page', newPage);
-        window.location.href = url.toString();
-    }
-  }
-
-  navigateToNearestNote(direction) {
-    // Get all note links
-    const noteLinks = document.querySelectorAll('.note-item a');
-    if (!noteLinks.length) return;
-
-    // Get current note ID from URL
-    const currentPath = window.location.pathname;
-    const currentNoteId = currentPath.split('/').pop();
-
-    // Find current note index
-    let currentIndex = -1;
-    noteLinks.forEach((link, index) => {
-        if (link.href.endsWith(`/note/${currentNoteId}`)) {
-            currentIndex = index;
-        }
-    });
-
-    // Calculate new index
-    let newIndex;
-    if (direction === 'next') {
-        newIndex = currentIndex < noteLinks.length - 1 ? currentIndex + 1 : 0;
-    } else {
-        newIndex = currentIndex > 0 ? currentIndex - 1 : noteLinks.length - 1;
-    }
-
-    // Navigate to new note
-    if (newIndex !== currentIndex) {
-        window.location.href = noteLinks[newIndex].href;
-    }
-  }
 }
