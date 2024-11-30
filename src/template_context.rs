@@ -83,12 +83,22 @@ impl BodyTemplateContext {
             .await
             .expect("Unable to store current page");
 
+        // Get the tag tree
+        let tag_tree = match get_tag_tree(&api_addr).await {
+            Ok(tree) => tree,
+            Err(e) => {
+                eprintln!("Failed to get tag tree: {:#?}", e);
+                Vec::new()
+            }
+        };
+
         Ok(Self {
             ctx: context!(
             tree => tree_html,
             pages => tree_pages,
             flash => flash,
             current_page => current_page,
+            tag_tree => tag_tree,
                 ),
         })
     }
@@ -169,14 +179,6 @@ impl NoteTemplateContext {
         // in an MPA is a bit more tricky than expected.
         let note = fetch_note(&api_addr, note_id, false).await?;
 
-        // Get the tag tree
-        let tag_tree = match get_tag_tree(&api_addr).await {
-            Ok(tree) => tree,
-            Err(e) => {
-                eprintln!("Failed to get tag tree: {:#?}", e);
-                Vec::new()
-            }
-        };
 
         let ctx = context! { ..body_handler.ctx, ..context! {
             note => note,
@@ -184,7 +186,6 @@ impl NoteTemplateContext {
             forwardlinks => forward_links,
             backlinks => backlinks,
             tags => tags,
-            tag_tree => tag_tree,
         }};
 
         Ok(Self { api_addr, ctx })
