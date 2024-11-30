@@ -4165,6 +4165,10 @@ html {
     --btn-color: var(--fallback-p);
   }
 
+  .btn-secondary {
+    --btn-color: var(--fallback-s);
+  }
+
   .btn-info {
     --btn-color: var(--fallback-in);
   }
@@ -4232,6 +4236,10 @@ html {
     --btn-color: var(--p);
   }
 
+  .btn-secondary {
+    --btn-color: var(--s);
+  }
+
   .btn-info {
     --btn-color: var(--in);
   }
@@ -4239,6 +4247,12 @@ html {
   .btn-error {
     --btn-color: var(--er);
   }
+}
+
+.btn-secondary {
+  --tw-text-opacity: 1;
+  color: var(--fallback-sc,oklch(var(--sc)/var(--tw-text-opacity)));
+  outline-color: var(--fallback-s,oklch(var(--s)/1));
 }
 
 .btn-info {
@@ -5987,6 +6001,11 @@ html:has(.drawer-open.drawer-open) {
 .text-primary {
   --tw-text-opacity: 1;
   color: var(--fallback-p,oklch(var(--p)/var(--tw-text-opacity)));
+}
+
+.text-success {
+  --tw-text-opacity: 1;
+  color: var(--fallback-su,oklch(var(--su)/var(--tw-text-opacity)));
 }
 
 .text-white {
