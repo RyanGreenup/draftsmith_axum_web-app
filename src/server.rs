@@ -5,6 +5,7 @@ use reqwest::Client;
 use minijinja;
 use chrono::{DateTime, Utc};
 use tower_sessions::Session;
+use crate::flash::{FlashMessage, FlashMessageStore};
 use crate::templates::{self, ENV, handle_template_error};
 use crate::template_context::{BodyTemplateContext, PaginationParams};
 use crate::routes::{
@@ -269,11 +270,19 @@ async fn route_upload_asset_form(
 
 async fn route_upload_asset(
     State(state): State<AppState>,
+    session: Session,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
     let client = match Client::builder().build() {
         Ok(client) => client,
-        Err(_) => return internal_server_error_response(),
+        Err(_) => {
+            let _ = session.set_flash(FlashMessage::error("Failed to initialize HTTP client")).await;
+            return Response::builder()
+                .status(StatusCode::FOUND)
+                .header("Location", "/upload_asset")
+                .body(Body::empty())
+                .unwrap_or_else(|_| internal_server_error_response());
+        }
     };
 
     let mut file_bytes = None;
@@ -283,9 +292,7 @@ async fn route_upload_asset(
     while let Ok(Some(field)) = multipart.next_field().await {
         match field.name() {
             Some("file") => {
-                // Get filename first, before consuming the field
                 filename = field.file_name().map(String::from);
-                // Then get bytes, which consumes the field
                 if let Ok(bytes) = field.bytes().await {
                     file_bytes = Some(bytes);
                 }
@@ -303,16 +310,17 @@ async fn route_upload_asset(
 
     let file_bytes = match file_bytes {
         Some(bytes) => bytes,
-        None => return Response::builder()
-            .status(StatusCode::BAD_REQUEST)
-            .body(Body::from("No file provided"))
-            .unwrap_or_else(|_| internal_server_error_response()),
+        None => {
+            let _ = session.set_flash(FlashMessage::error("No file provided")).await;
+            return Response::builder()
+                .status(StatusCode::FOUND)
+                .header("Location", "/upload_asset")
+                .body(Body::empty())
+                .unwrap_or_else(|_| internal_server_error_response());
+        }
     };
 
-    // Prepare the multipart request to the API
     let upload_url = format!("{}/assets/upload", state.api_addr);
-
-    // Use location or filename, with a fallback
     let final_filename = location.or(filename).unwrap_or_else(|| "uploaded_file".to_string());
 
     let form = reqwest::multipart::Form::new()
@@ -328,20 +336,43 @@ async fn route_upload_asset(
         .await
     {
         Ok(response) => {
-            if response.status().is_success() {
-                Response::builder()
-                    .status(StatusCode::FOUND)
-                    .header("Location", "/")
-                    .body(Body::empty())
-                    .unwrap_or_else(|_| internal_server_error_response())
-            } else {
-                Response::builder()
-                    .status(response.status())
-                    .body(Body::from("Failed to upload file"))
-                    .unwrap_or_else(|_| internal_server_error_response())
+            let status = response.status();
+            match response.text().await {
+                Ok(text) => {
+                    if status.is_success() {
+                        let _ = session.set_flash(FlashMessage::success("File uploaded successfully")).await;
+                        Response::builder()
+                            .status(StatusCode::FOUND)
+                            .header("Location", "/upload_asset")
+                            .body(Body::empty())
+                            .unwrap_or_else(|_| internal_server_error_response())
+                    } else {
+                        let _ = session.set_flash(FlashMessage::error(&format!("Upload failed: {}", text))).await;
+                        Response::builder()
+                            .status(StatusCode::FOUND)
+                            .header("Location", "/upload_asset")
+                            .body(Body::empty())
+                            .unwrap_or_else(|_| internal_server_error_response())
+                    }
+                }
+                Err(_) => {
+                    let _ = session.set_flash(FlashMessage::error("Failed to read response from server")).await;
+                    Response::builder()
+                        .status(StatusCode::FOUND)
+                        .header("Location", "/upload_asset")
+                        .body(Body::empty())
+                        .unwrap_or_else(|_| internal_server_error_response())
+                }
             }
         }
-        Err(_) => internal_server_error_response(),
+        Err(e) => {
+            let _ = session.set_flash(FlashMessage::error(&format!("Upload failed: {}", e))).await;
+            Response::builder()
+                .status(StatusCode::FOUND)
+                .header("Location", "/upload_asset")
+                .body(Body::empty())
+                .unwrap_or_else(|_| internal_server_error_response())
+        }
     }
 }
 
