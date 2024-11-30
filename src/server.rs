@@ -33,6 +33,7 @@ use axum::extract::State;
 use axum::{
     extract::{Path, DefaultBodyLimit},
     routing::{get, post},
+    response::{Html, IntoResponse, Response},
     Router,
 };
 use tower_http::compression::CompressionLayer;
@@ -93,7 +94,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/note/:id/detach", post(route_detach_note_post))
         .route("/assign_tags/:id", get(route_assign_tags_get).post(route_assign_tags_post))
         .route("/m/*file_path", get(route_serve_asset))
-        .route("/upload_asset", 
+        .route("/upload_asset",
             get(route_upload_asset_form)
             .post(route_upload_asset)
         )
@@ -247,13 +248,9 @@ async fn route_upload_asset_form(
 ) -> impl IntoResponse {
     let template_name = "body/upload_asset.html";
     let tree_html = ""; // TODO: Implement sidebar tree html generation
-    
-    // Get CSRF token from session
-    let csrf_token = templates::get_csrf_token(&session).await;
-    
+
     let context = minijinja::value::Value::from_serialize(&serde_json::json!({
         "tree_html": tree_html,
-        "csrf_token": csrf_token,
     }));
 
     Html(templates::render_template(template_name, context)).into_response()
@@ -303,12 +300,12 @@ async fn route_upload_asset(
 
     // Prepare the multipart request to the API
     let upload_url = format!("{}/assets/upload", state.api_addr);
-    
+
     // Use location or filename, with a fallback
     let final_filename = location.or(filename).unwrap_or_else(|| "uploaded_file".to_string());
 
     let form = reqwest::multipart::Form::new()
-        .part("file", 
+        .part("file",
             reqwest::multipart::Part::bytes(file_bytes.to_vec())
                 .file_name(final_filename.clone())
         )
@@ -317,7 +314,7 @@ async fn route_upload_asset(
     match client.post(&upload_url)
         .multipart(form)
         .send()
-        .await 
+        .await
     {
         Ok(response) => {
             if response.status().is_success() {
