@@ -71,30 +71,3 @@
   height: 2px;
   background-color: #666;
 }
-
-.drawer-side.detach-drop-zone {
-    position: relative;
-}
-
-.drawer-side.detach-drop-zone::after {
-    content: "Drop here to detach tag";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(200, 200, 200, 0.3);
-    border: 3px dashed #666;
-    font-size: 1rem;
-    color: #333;
-    pointer-events: none;
-    z-index: 1000;
-}
-
-.drawer-side.detach-drop-zone.drag-hover::after {
-    background: rgba(200, 200, 200, 0.5);
-    border-color: #333;
-}
