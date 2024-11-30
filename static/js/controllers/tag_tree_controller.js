@@ -107,47 +107,75 @@ export default class extends Controller {
   }
 
   handleBodyDragOver(event) {
-    // Only allow dropping outside the menu and drawer
-    if (!event.target.closest('.menu') && !event.target.closest('.drawer-side')) {
-        event.preventDefault()
-        document.body.classList.add('detach-drop-zone')
+    // Get coordinates of the drop zone
+    const dropZoneRect = {
+        bottom: window.innerHeight - 20,
+        top: window.innerHeight - 120,
+        left: (window.innerWidth - 200) / 2,
+        right: (window.innerWidth + 200) / 2
+    };
+
+    // Check if the drag is within the drop zone area
+    const isInDropZone = 
+        event.clientY >= dropZoneRect.top &&
+        event.clientY <= dropZoneRect.bottom &&
+        event.clientX >= dropZoneRect.left &&
+        event.clientX <= dropZoneRect.right;
+
+    // Only allow dropping in the specific drop zone area
+    if (isInDropZone && !event.target.closest('.menu') && !event.target.closest('.drawer-side')) {
+        event.preventDefault();
+        document.body.classList.add('detach-drop-zone');
+        if (!document.body.classList.contains('drag-hover')) {
+            document.body.classList.add('drag-hover');
+        }
     } else {
-        document.body.classList.remove('detach-drop-zone')
+        document.body.classList.remove('detach-drop-zone', 'drag-hover');
     }
   }
 
   async handleBodyDrop(event) {
-    // Only handle drops outside the tree
-    if (!event.target.closest('.menu')) {
-      event.preventDefault()
-      document.body.classList.remove('detach-drop-zone')
+    const dropZoneRect = {
+        bottom: window.innerHeight - 20,
+        top: window.innerHeight - 120,
+        left: (window.innerWidth - 200) / 2,
+        right: (window.innerWidth + 200) / 2
+    };
 
-      const draggedTagId = event.dataTransfer.getData('text/plain')
-      if (!draggedTagId) return
+    const isInDropZone = 
+        event.clientY >= dropZoneRect.top &&
+        event.clientY <= dropZoneRect.bottom &&
+        event.clientX >= dropZoneRect.left &&
+        event.clientX <= dropZoneRect.right;
 
-      try {
-        // Make the API call to detach the tag using the new endpoint
-        const response = await fetch(`/tag/${draggedTagId}/unset_parent`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json',
+    if (isInDropZone && !event.target.closest('.menu')) {
+        event.preventDefault();
+        document.body.classList.remove('detach-drop-zone', 'drag-hover');
+
+        const draggedTagId = event.dataTransfer.getData('text/plain');
+        if (!draggedTagId) return;
+
+        try {
+            const response = await fetch(`/tag/${draggedTagId}/unset_parent`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Detach failed: ${errorText}`);
             }
-        })
 
-        if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(`Detach failed: ${errorText}`)
+            window.location.href = '/manage_tags';
+
+        } catch (error) {
+            console.error('Error detaching tag:', error);
+            alert('Failed to detach tag: ' + error.message);
+            window.location.href = '/manage_tags';
         }
-
-        // Redirect to manage_tags to show the updated hierarchy
-        window.location.href = '/manage_tags'
-
-      } catch (error) {
-        console.error('Error detaching tag:', error)
-        alert('Failed to detach tag: ' + error.message)
-        window.location.href = '/manage_tags'
-      }
     }
   }
 }
