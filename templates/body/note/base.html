@@ -1,6 +1,6 @@
 {% extends "body/base.html" %}
 {% block content %}
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto px-4 py-8" data-controller="keybinding">
     {% block note_content %} {% endblock %}
     <div class="mt-4 text-sm text-base-content/70">
       Last modified: {{ note.modified_at | datetime }}
