@@ -6,6 +6,8 @@ use reqwest::Client;
 use axum::extract::Multipart;
 use minijinja;
 use chrono::{DateTime, Utc};
+use tower_sessions::Session;
+use crate::template;
 use crate::routes::{
     notes::{
         create::route_create,
@@ -244,19 +246,18 @@ async fn route_upload_asset_form(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     let template_name = "body/upload_asset.html";
-    // You'll need to implement get_tree_html() or similar function to get the sidebar tree
     let tree_html = ""; // TODO: Implement sidebar tree html generation
     
-    let mut context = minijinja::value::Value::from_serializable(&serde_json::json!({
+    let context = minijinja::value::Value::from_serialize(&serde_json::json!({
         "tree_html": tree_html,
     }));
 
-    crate::template::render_template(template_name, context)
+    template::render_template(template_name, context)
 }
 
 async fn route_upload_asset(
     State(state): State<AppState>,
-    mut multipart: axum::extract::Multipart,
+    mut multipart: Multipart,
 ) -> impl IntoResponse {
     let client = match Client::builder().build() {
         Ok(client) => client,
@@ -301,9 +302,14 @@ async fn route_upload_asset(
     let upload_url = format!("{}/assets/upload", state.api_addr);
     let filename = location.or_else(|| file.file_name().map(String::from));
     
-    let form = reqwest::multipart::Form::new()
-        .file("file", file)
-        .unwrap_or_else(|_| reqwest::multipart::Form::new());
+    let mut form = reqwest::multipart::Form::new();
+    
+    // Add the file to the form
+    if let Ok(data) = file.bytes().await {
+        let part = reqwest::multipart::Part::bytes(data.to_vec())
+            .file_name(filename.clone().unwrap_or_else(|| "file".to_string()));
+        form = form.part("file", part);
+    }
 
     if let Some(name) = filename {
         form = form.text("location", name);
