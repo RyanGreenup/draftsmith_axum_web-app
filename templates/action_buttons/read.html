@@ -1,17 +1,21 @@
 <!-- TODO Make this take the correct id -->
 {% extends "action_buttons/base.html" %} {% block action_buttons %}
 <a href="/edit/{{note.id}}" class="btn btn-primary" data-edit-link=""> Edit </a>
+<a href="/assign_tags/{{note.id}}" class="btn btn-secondary">
+  <i class="fas fa-tags"></i> Tags
+</a>
+<a href="/note/{{note.id}}/move" class="btn btn-secondary">
+  <i class="fas fa-arrows-alt"></i> Move
+</a>
 <form
   action="/note/{{note.id}}/delete"
   method="POST"
   class="inline"
   onsubmit="return confirm('Are you sure you want to delete this note?');"
 >
-
   {% include 'csrf_token.html' %}
   <button type="submit" class="btn btn-error">Delete</button>
 </form>
-
 {% endblock %}
 
 
