@@ -105,7 +105,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .layer(session_layer);
 
 async fn route_serve_asset(
-    State(state): State<AppState>, 
+    State(state): State<AppState>,
     Path(file_path): Path<String>,
     headers: axum::http::HeaderMap,
 ) -> Response {
@@ -355,7 +355,7 @@ async fn route_upload_asset(
             let filename = asset.location.display().to_string();
             let markdown = format!("![{}](/m/{})", filename, filename);
             let success_msg = format!(
-                "File uploaded successfully. asset_id: {}\nUse this markdown to embed the file:\n```\n{}\n```",
+                "File uploaded successfully. asset_id: {}\nUse this markdown to embed the file:\n {}",
                 asset.id,
                 markdown
             );
