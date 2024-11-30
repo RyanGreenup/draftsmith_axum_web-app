@@ -277,7 +277,7 @@ async fn route_upload_asset(
 ) -> impl IntoResponse {
     // Process multipart form
     let mut file_part = None;
-    let mut location = None;
+    let mut custom_location = None;
 
     while let Ok(Some(field)) = multipart.next_field().await {
         match field.name() {
@@ -290,7 +290,7 @@ async fn route_upload_asset(
             Some("location") => {
                 if let Ok(value) = field.text().await {
                     if !value.is_empty() {
-                        location = Some(value);
+                        custom_location = Some(value);
                     }
                 }
             }
@@ -299,7 +299,7 @@ async fn route_upload_asset(
     }
 
     // Check if we got a file
-    let (filename, file_bytes) = match file_part {
+    let (original_filename, file_bytes) = match file_part {
         Some((Some(name), bytes)) => (name, bytes),
         _ => {
             let _ = session.set_flash(FlashMessage::error("No file provided")).await;
@@ -334,13 +334,16 @@ async fn route_upload_asset(
             .unwrap_or_else(|_| internal_server_error_response());
     }
 
+    // Use the custom location if provided, otherwise use the original filename
+    let final_location = custom_location.or(Some(original_filename));
+
     // Use create_asset function
     let result = create_asset(
         &state.api_addr,
         temp_file.path(),
         None, // no note_id
         None, // no description
-        location, // optional custom filename
+        final_location, // either custom filename or original filename
     ).await;
 
     // The temporary file will be automatically deleted when temp_file is dropped
