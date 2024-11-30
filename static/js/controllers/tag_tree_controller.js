@@ -24,7 +24,10 @@ export default class extends Controller {
 
   handleDragStart(event) {
     const tagItem = event.target.closest('.collapse-title')
+    // Extract just the ID number from the href
     const tagId = tagItem.querySelector('a').href.split('/').pop()
+    console.log('Dragging tag with ID:', tagId) // Debug logging
+    
     // Store the dragged tag's ID
     event.dataTransfer.setData('text/plain', tagId)
     // Add dragging class for visual feedback
@@ -67,6 +70,8 @@ export default class extends Controller {
 
     const draggedTagId = event.dataTransfer.getData('text/plain')
     const targetTagId = targetItem.querySelector('a').href.split('/').pop()
+    
+    console.log('Moving tag', draggedTagId, 'to parent', targetTagId) // Debug logging
 
     // Don't do anything if dropping on itself
     if (draggedTagId === targetTagId) {
@@ -74,11 +79,12 @@ export default class extends Controller {
     }
 
     try {
-        // Make a single request to set the new parent
+        // Make the API call to set the new parent
         const response = await fetch(`/tags/${draggedTagId}/set_parent`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json',
             },
             body: new URLSearchParams({
                 'parent_id': targetTagId
@@ -86,15 +92,17 @@ export default class extends Controller {
         })
 
         if (!response.ok) {
-            throw new Error(`Move failed: ${response.statusText}`)
+            const errorText = await response.text()
+            throw new Error(`Move failed: ${errorText}`)
         }
 
-        // Reload the page to show the updated hierarchy
-        window.location.reload()
+        // Force a full page reload to show the updated hierarchy
+        window.location.href = '/manage_tags'
 
     } catch (error) {
         console.error('Error moving tag:', error)
-        window.location.reload()
+        alert('Failed to update tag hierarchy: ' + error.message)
+        window.location.href = '/manage_tags'
     }
   }
 
