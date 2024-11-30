@@ -324,14 +324,12 @@ async fn route_upload_asset(
     // Build the upload URL
     let upload_url = format!("{}/assets/upload", state.api_addr);
     
-    // Use location if provided, otherwise use original filename
-    let final_filename = location.unwrap_or(filename);
-
-    // Create multipart form for the API request
+    // Create form with the correct field name and content type
     let form = reqwest::multipart::Form::new()
         .part("file", 
             reqwest::multipart::Part::bytes(file_bytes.to_vec())
-                .file_name(final_filename.clone())
+                .file_name(location.unwrap_or(filename.clone()))
+                .mime_str("application/octet-stream").unwrap()
         );
 
     // Send the request to the API
@@ -341,12 +339,29 @@ async fn route_upload_asset(
         .await 
     {
         Ok(response) => {
-            let status = response.status();
-            if status.is_success() {
-                let _ = session.set_flash(FlashMessage::success(&format!("File '{}' uploaded successfully", final_filename))).await;
-            } else {
-                let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-                let _ = session.set_flash(FlashMessage::error(&format!("Upload failed: {}", error_text))).await;
+            match response.status() {
+                StatusCode::OK | StatusCode::CREATED => {
+                    // Try to parse the response to get asset details
+                    match response.json::<serde_json::Value>().await {
+                        Ok(json) => {
+                            let asset_id = json.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+                            let server_filename = json.get("location").and_then(|v| v.as_str()).unwrap_or("unknown");
+                            let success_msg = format!(
+                                "File uploaded successfully. asset_id: {}, server_filename: {}", 
+                                asset_id, 
+                                server_filename
+                            );
+                            let _ = session.set_flash(FlashMessage::success(&success_msg)).await;
+                        },
+                        Err(_) => {
+                            let _ = session.set_flash(FlashMessage::success("File uploaded successfully")).await;
+                        }
+                    }
+                },
+                _ => {
+                    let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                    let _ = session.set_flash(FlashMessage::error(&format!("Upload failed: {}", error_text))).await;
+                }
             }
         }
         Err(e) => {
@@ -354,7 +369,6 @@ async fn route_upload_asset(
         }
     }
 
-    // Always redirect back to the upload form
     Response::builder()
         .status(StatusCode::FOUND)
         .header("Location", "/upload_asset")
