@@ -3,6 +3,8 @@ use axum::body::Body;
 use axum::http::StatusCode;
 use axum::http::header::{IF_NONE_MATCH, IF_MODIFIED_SINCE};
 use reqwest::Client;
+use axum::extract::Multipart;
+use minijinja;
 use chrono::{DateTime, Utc};
 use crate::routes::{
     notes::{
@@ -89,6 +91,10 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/note/:id/detach", post(route_detach_note_post))
         .route("/assign_tags/:id", get(route_assign_tags_get).post(route_assign_tags_post))
         .route("/m/*file_path", get(route_serve_asset))
+        .route("/upload_asset", 
+            get(route_upload_asset_form)
+            .post(route_upload_asset)
+        )
         .layer(CompressionLayer::new())
         .layer(DefaultBodyLimit::max(max_body_size))
         .with_state(state)
@@ -231,6 +237,99 @@ fn gateway_timeout_response() -> Response {
         .header("content-type", "text/plain")
         .body(Body::from("Gateway timeout"))
         .unwrap_or_default()
+}
+
+async fn route_upload_asset_form(
+    session: Session,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let template_name = "body/upload_asset.html";
+    // You'll need to implement get_tree_html() or similar function to get the sidebar tree
+    let tree_html = ""; // TODO: Implement sidebar tree html generation
+    
+    let mut context = minijinja::value::Value::from_serializable(&serde_json::json!({
+        "tree_html": tree_html,
+    }));
+
+    crate::template::render_template(template_name, context)
+}
+
+async fn route_upload_asset(
+    State(state): State<AppState>,
+    mut multipart: axum::extract::Multipart,
+) -> impl IntoResponse {
+    let client = match Client::builder().build() {
+        Ok(client) => client,
+        Err(_) => {
+            return Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::from("Failed to initialize HTTP client"))
+                .unwrap_or_else(|_| internal_server_error_response());
+        }
+    };
+
+    let mut file_part = None;
+    let mut location = None;
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        match field.name() {
+            Some("file") => {
+                file_part = Some(field);
+            }
+            Some("location") => {
+                if let Ok(value) = field.text().await {
+                    if !value.is_empty() {
+                        location = Some(value);
+                    }
+                }
+            }
+            _ => continue,
+        }
+    }
+
+    let file = match file_part {
+        Some(file) => file,
+        None => {
+            return Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body(Body::from("No file provided"))
+                .unwrap_or_else(|_| internal_server_error_response());
+        }
+    };
+
+    // Prepare the multipart request to the API
+    let upload_url = format!("{}/assets/upload", state.api_addr);
+    let filename = location.or_else(|| file.file_name().map(String::from));
+    
+    let form = reqwest::multipart::Form::new()
+        .file("file", file)
+        .unwrap_or_else(|_| reqwest::multipart::Form::new());
+
+    if let Some(name) = filename {
+        form = form.text("location", name);
+    }
+
+    match client.post(&upload_url)
+        .multipart(form)
+        .send()
+        .await 
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                Response::builder()
+                    .status(StatusCode::FOUND)
+                    .header("Location", "/")  // Redirect to home page after successful upload
+                    .body(Body::empty())
+                    .unwrap_or_else(|_| internal_server_error_response())
+            } else {
+                Response::builder()
+                    .status(response.status())
+                    .body(Body::from("Failed to upload file"))
+                    .unwrap_or_else(|_| internal_server_error_response())
+            }
+        }
+        Err(_) => internal_server_error_response(),
+    }
 }
 
 fn map_upstream_error(status: StatusCode) -> Response {
