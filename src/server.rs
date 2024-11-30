@@ -6,6 +6,7 @@ use minijinja;
 use chrono::{DateTime, Utc};
 use tower_sessions::Session;
 use crate::flash::{FlashMessage, FlashMessageStore};
+use std::path::Path;
 use crate::templates::{self, ENV, handle_template_error};
 use crate::template_context::{BodyTemplateContext, PaginationParams};
 use draftsmith_rest_api::client::assets::{list_assets, create_asset, update_asset};
@@ -274,18 +275,6 @@ async fn route_upload_asset(
     session: Session,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
-    let client = match Client::builder().build() {
-        Ok(client) => client,
-        Err(_) => {
-            let _ = session.set_flash(FlashMessage::error("Failed to initialize HTTP client")).await;
-            return Response::builder()
-                .status(StatusCode::FOUND)
-                .header("Location", "/upload_asset")
-                .body(Body::empty())
-                .unwrap_or_else(|_| internal_server_error_response());
-        }
-    };
-
     // Process multipart form
     let mut file_part = None;
     let mut location = None;
@@ -322,48 +311,53 @@ async fn route_upload_asset(
         }
     };
 
-    // Build the upload URL
-    let upload_url = format!("{}/assets/upload", state.api_addr);
+    // Create temporary directory if it doesn't exist
+    let temp_dir = Path::new("temp");
+    if let Err(e) = std::fs::create_dir_all(temp_dir) {
+        let _ = session.set_flash(FlashMessage::error(&format!("Failed to create temp directory: {}", e))).await;
+        return Response::builder()
+            .status(StatusCode::FOUND)
+            .header("Location", "/upload_asset")
+            .body(Body::empty())
+            .unwrap_or_else(|_| internal_server_error_response());
+    }
 
-    // Create form with the correct field name and content type
-    let form = reqwest::multipart::Form::new()
-        .part("file",
-            reqwest::multipart::Part::bytes(file_bytes.to_vec())
-                .file_name(location.unwrap_or(filename.clone()))
-                .mime_str("application/octet-stream").unwrap()
-        );
+    // Create temporary file path
+    let temp_file_path = temp_dir.join(&filename);
+    
+    // Write bytes to temporary file
+    if let Err(e) = std::fs::write(&temp_file_path, file_bytes) {
+        let _ = session.set_flash(FlashMessage::error(&format!("Failed to write temporary file: {}", e))).await;
+        return Response::builder()
+            .status(StatusCode::FOUND)
+            .header("Location", "/upload_asset")
+            .body(Body::empty())
+            .unwrap_or_else(|_| internal_server_error_response());
+    }
 
-    // Send the request to the API
-    match client.post(&upload_url)
-        .multipart(form)
-        .send()
-        .await
-    {
-        Ok(response) => {
-            match response.status() {
-                StatusCode::OK | StatusCode::CREATED => {
-                    // Try to parse the response to get asset details
-                    match response.json::<serde_json::Value>().await {
-                        Ok(json) => {
-                            let asset_id = json.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
-                            let server_filename = json.get("location").and_then(|v| v.as_str()).unwrap_or("unknown");
-                            let success_msg = format!(
-                                "File uploaded successfully. asset_id: {}, server_filename: {}",
-                                asset_id,
-                                server_filename
-                            );
-                            let _ = session.set_flash(FlashMessage::success(&success_msg)).await;
-                        },
-                        Err(_) => {
-                            let _ = session.set_flash(FlashMessage::success("File uploaded successfully")).await;
-                        }
-                    }
-                },
-                _ => {
-                    let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-                    let _ = session.set_flash(FlashMessage::error(&format!("Upload failed: {}", error_text))).await;
-                }
-            }
+    // Use create_asset function
+    let result = create_asset(
+        &state.api_addr,
+        &temp_file_path,
+        None, // no note_id
+        None, // no description
+        location, // optional custom filename
+    ).await;
+
+    // Clean up temporary file
+    if let Err(e) = std::fs::remove_file(&temp_file_path) {
+        eprintln!("Failed to remove temporary file: {}", e);
+    }
+
+    // Handle the result
+    match result {
+        Ok(asset) => {
+            let success_msg = format!(
+                "File uploaded successfully. asset_id: {}, server_filename: {}",
+                asset.id,
+                asset.location.display()
+            );
+            let _ = session.set_flash(FlashMessage::success(&success_msg)).await;
         }
         Err(e) => {
             let _ = session.set_flash(FlashMessage::error(&format!("Upload failed: {}", e))).await;
