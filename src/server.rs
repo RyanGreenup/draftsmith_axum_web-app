@@ -69,6 +69,7 @@ pub async fn serve(api_scheme: &str, api_host: &str, api_port: &u16, host: &str,
         .route("/delete_tag/:id", post(route_delete_tag))
         .route("/rename_tag/:id", post(route_update_tag))
         .route("/tag/:id/set_parent", post(route_set_parent))
+        .route("/tag/:id/unset_parent", post(route_unset_parent))
         .route("/tags/:id", get(route_list_tag))
 
         .route("/note/:id", get(route_note))

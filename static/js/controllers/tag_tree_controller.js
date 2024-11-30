@@ -124,27 +124,27 @@ export default class extends Controller {
       if (!draggedTagId) return
 
       try {
-        // Make the API call to detach the tag
-        const response = await fetch(`/tag/${draggedTagId}/set_parent`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            'parent_id': ''  // Empty string to indicate detachment
-          }).toString()
+        // Make the API call to detach the tag using the new endpoint
+        const response = await fetch(`/tag/${draggedTagId}/unset_parent`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json',
+            }
         })
 
         if (!response.ok) {
-          throw new Error(`Detach failed: ${response.statusText}`)
+            const errorText = await response.text()
+            throw new Error(`Detach failed: ${errorText}`)
         }
 
-        // Reload the page to show the updated hierarchy
-        window.location.reload()
+        // Redirect to manage_tags to show the updated hierarchy
+        window.location.href = '/manage_tags'
 
       } catch (error) {
         console.error('Error detaching tag:', error)
-        window.location.reload()
+        alert('Failed to detach tag: ' + error.message)
+        window.location.href = '/manage_tags'
       }
     }
   }
