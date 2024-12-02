@@ -14,7 +14,9 @@
         </li>
         <span>/</span>
     {% endfor %}
+    {% if breadcrumbs is defined %}
     <li class="text-gray-600 font-semibold">{{ breadcrumbs[-1].title }}</li>
+    {% endif %}
     </ul>
 {% else %}
 {% endif %}
